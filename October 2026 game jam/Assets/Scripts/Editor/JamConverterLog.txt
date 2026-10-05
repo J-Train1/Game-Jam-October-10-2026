@@ -1,0 +1,45 @@
+[JamConverter] Converted 11 materials, kept 33 that already work in URP.
+kept         ATM_DustParticle (Legacy Shaders/Particles/Additive)
+kept         ATM_HaloRing (Legacy Shaders/Particles/Additive)
+kept         ATM_Leaf1 (Legacy Shaders/Particles/Alpha Blended)
+opaque       BGR_Sky1
+water        BGR_Water
+kept         BLD_BrickHouse1 (Universal Render Pipeline/Lit)
+opaque       BLD_Bridge1
+kept         BLD_Bridge1_LOD (Universal Render Pipeline/Lit)
+kept         BLD_Cabins (Universal Render Pipeline/Lit)
+opaque       BLD_Cabins_Mossy
+kept         BLD_Church1 (Universal Render Pipeline/Lit)
+kept         BLD_Doors1 (Universal Render Pipeline/Lit)
+kept         BLD_IndBuilding1 (Universal Render Pipeline/Lit)
+kept         BLD_IndBuilding1_LOD (Universal Render Pipeline/Lit)
+kept         BLD_Rubble1 (Universal Render Pipeline/Lit)
+kept         BLD_Structures1 (Universal Render Pipeline/Lit)
+kept         BLD_Structures1_LOD (Universal Render Pipeline/Lit)
+kept         BLD_Structures2 (Universal Render Pipeline/Lit)
+kept         BLD_Structures2_LOD (Universal Render Pipeline/Lit)
+kept         BLD_Villa1 (Universal Render Pipeline/Lit)
+kept         BLD_Villa2 (Universal Render Pipeline/Lit)
+kept         BLD_WindowGlass1 (Universal Render Pipeline/Lit)
+kept         HLP_BlockerCube (Universal Render Pipeline/Lit)
+kept         HLP_Grid (Universal Render Pipeline/Lit)
+kept         MSC_HumanScale (Universal Render Pipeline/Lit)
+foliage      NAT_Bush1
+opaque       NAT_CobbleRocks1
+kept         NAT_Grass (Universal Render Pipeline/Lit)
+kept         NAT_GroundMoss (Universal Render Pipeline/Lit)
+opaque       NAT_Rocks1
+kept         PROP_Beds1 (Universal Render Pipeline/Lit)
+kept         PROP_Boat1 (Universal Render Pipeline/Lit)
+kept         PROP_Boat1_LOD (Universal Render Pipeline/Lit)
+kept         PROP_Cabinets1 (Universal Render Pipeline/Lit)
+opaque       PROP_Car1
+opaque       PROP_Car1_Rusty
+kept         PROP_FlyingSaucer (Universal Render Pipeline/Lit)
+opaque       PROP_FlyingSaucer_Mossy
+kept         PROP_Gravestones1 (Universal Render Pipeline/Lit)
+kept         PROP_ParkBench1 (Universal Render Pipeline/Lit)
+kept         PROP_RugsPaintings (Universal Render Pipeline/Lit)
+opaque       PROP_Ship1
+kept         PROP_SmallProps1 (Universal Render Pipeline/Lit)
+kept         PROP_SmallProps2 (Universal Render Pipeline/Lit)
