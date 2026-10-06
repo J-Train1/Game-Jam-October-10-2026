@@ -40,6 +40,8 @@ public class PlayerController : MonoBehaviour
     public bool IsSprinting { get; private set; }
     public bool IsMoving { get; private set; }
     public float Stamina01 => stamina / maxStamina;
+    /// <summary>True after running stamina dry, until enough has recovered to sprint again.</summary>
+    public bool IsExhausted => exhausted;
     public float NoiseRadius => IsSprinting ? sprintNoiseRadius : IsMoving ? walkNoiseRadius : 0f;
     public bool InputEnabled { get; set; } = true;
 
