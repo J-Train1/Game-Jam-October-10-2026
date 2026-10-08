@@ -154,7 +154,7 @@ MonoBehaviour:
   sprintSpeed: 5.5
   acceleration: 12
   gravity: -20
-  maxStamina: 4.5
+  maxStamina: 3
   staminaRegenRate: 1
   regenDelay: 1.2
   minStaminaToSprint: 0.75
@@ -398,7 +398,7 @@ MonoBehaviour:
   intensity: 25
   color: {r: 1, g: 0.92, b: 0.78, a: 1}
   maxBattery: 100
-  drainPerSecond: 3
+  drainPerSecond: 4
   rechargePerSecond: 6
   rechargeDelay: 0.75
   minToRestart: 15

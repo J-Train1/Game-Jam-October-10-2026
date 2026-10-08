@@ -9,10 +9,13 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 
 // One-shot setup for the pumpkin monster:
-// 1) Mixamo clips (Walk, Run, Jump Attack) -> Humanoid, looping, root motion baked into the pose.
+// 1) Mixamo clips (Walk, Run, Jump Attack) -> Humanoid. Looping clips play fully in place
+//    (root XZ extracted, not baked, so there is no drift-and-snap-back on each loop).
 // 2) Creepy freeze pose clip: legs from a held Walk frame (feet planted), upper body from the table below.
 // 3) Animator controller: Walk / Run / Pose / JumpAttack, IK pass on (for the look-at).
-// 4) Prefab Assets/Monster/PumpkinMonster.prefab (your "pumpkin 1" model + PumpkinMonster script).
+// 4) Prefab Assets/Monster/PumpkinMonster.prefab ("pumpkin 1" model + PumpkinMonster script).
+//    The model gets the humanoid avatar whose bone names actually match its skeleton.
+//    An existing prefab is updated in place, so PumpkinMonster tuning values (speeds etc.) are kept.
 // Runs once automatically after compile if the report is missing; or Tools/Jam/Setup Pumpkin Monster.
 // To tweak the pose: edit PoseOverrides, then run the menu item again.
 public static class JamPumpkinSetup
@@ -20,6 +23,7 @@ public static class JamPumpkinSetup
     const string ReportPath = "Assets/Scripts/Editor/PumpkinSetupReport.cs";
     const string Src = "Assets/pumpkin monster/Prefab/";
     const string ModelPrefab = Src + "pumpkin 1.prefab";
+    const string WalkFbx = Src + "Mutant Walking.fbx";
     const string OutDir = "Assets/Monster";
     const string AnimDir = OutDir + "/Animations";
     const string PosePath = AnimDir + "/Pumpkin_CreepyPose.anim";
@@ -81,37 +85,45 @@ public static class JamPumpkinSetup
         EnsureFolder("Assets", "Monster");
         EnsureFolder(OutDir, "Animations");
 
-        var walk = ImportClip(Src + "Mutant Walking.fbx", "Walk", true, sb);
+        var walk = ImportClip(WalkFbx, "Walk", true, sb);
         var run = ImportClip(Src + "Mutant Run.fbx", "Run", true, sb);
         var jump = ImportClip(Src + "Mutant Jump Attack.fbx", "JumpAttack", false, sb);
         if (walk == null || run == null) { sb.AppendLine("STOP: walk/run clip missing"); return; }
 
         var pose = BuildPose(walk, sb);
         var ctrl = BuildController(walk, run, pose, jump, sb);
-        BuildPrefab(ctrl, sb);
+        var avatar = PickAvatar(sb);
+        BuildPrefab(ctrl, avatar, sb);
         AssetDatabase.SaveAssets();
         sb.AppendLine("done");
     }
+
+    // ---------------- Clips ----------------
 
     static AnimationClip ImportClip(string path, string clipName, bool loop, StringBuilder sb)
     {
         var imp = AssetImporter.GetAtPath(path) as ModelImporter;
         if (imp == null) { sb.AppendLine($"{clipName}: no importer at {path}"); return null; }
-        imp.animationType = ModelImporterAnimationType.Human;
-        imp.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
-        imp.importAnimation = true;
-        imp.SaveAndReimport(); // build the avatar first so the clip list is valid
+        if (imp.animationType != ModelImporterAnimationType.Human || imp.avatarSetup != ModelImporterAvatarSetup.CreateFromThisModel || !imp.importAnimation)
+        {
+            imp.animationType = ModelImporterAnimationType.Human;
+            imp.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+            imp.importAnimation = true;
+            imp.SaveAndReimport(); // build the avatar first so the clip list is valid
+        }
 
-        var src = imp.defaultClipAnimations;
+        var src = imp.clipAnimations.Length > 0 ? imp.clipAnimations : imp.defaultClipAnimations;
         if (src.Length == 0) { sb.AppendLine($"{clipName}: no clips in {path}"); return null; }
         var c = src[0];
         c.name = clipName;
         c.loopTime = loop;
         c.loopPose = loop;
-        // Bake root motion into the pose: the script moves the monster, the clip plays in place.
+        // Rotation and height stay in the pose. Looping clips: root XZ is extracted as root motion, which is
+        // discarded (applyRootMotion is off), so they play fully in place while the script moves the monster.
+        // Baking XZ into the pose made the body drift sideways and snap back every loop.
         c.lockRootRotation = true;  c.keepOriginalOrientation = false;
         c.lockRootHeightY = true;   c.keepOriginalPositionY = false; c.heightFromFeet = true;
-        c.lockRootPositionXZ = true; c.keepOriginalPositionXZ = false;
+        c.lockRootPositionXZ = !loop; c.keepOriginalPositionXZ = false;
         imp.clipAnimations = new[] { c };
         imp.SaveAndReimport();
 
@@ -130,8 +142,7 @@ public static class JamPumpkinSetup
 
         // Start from a held Walk frame (root + legs + everything), then override the upper body.
         var values = new Dictionary<string, float>();
-        var bindings = AnimationUtility.GetCurveBindings(walk);
-        foreach (var b in bindings)
+        foreach (var b in AnimationUtility.GetCurveBindings(walk))
         {
             if (b.type != typeof(Animator) || !string.IsNullOrEmpty(b.path)) continue;
             var curve = AnimationUtility.GetEditorCurve(walk, b);
@@ -185,13 +196,16 @@ public static class JamPumpkinSetup
 
     static AnimatorController BuildController(AnimationClip walk, AnimationClip run, AnimationClip pose, AnimationClip jump, StringBuilder sb)
     {
-        if (AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath) != null) AssetDatabase.DeleteAsset(ControllerPath);
-        var ctrl = AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
+        var ctrl = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+        if (ctrl == null) ctrl = AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
+
         var layers = ctrl.layers;
         layers[0].iKPass = true; // needed for look-at
         ctrl.layers = layers;
 
+        // Rebuild the states in place (keeps the asset and every reference to it).
         var sm = ctrl.layers[0].stateMachine;
+        foreach (var s in sm.states.ToArray()) sm.RemoveState(s.state);
         var w = sm.AddState("Walk"); w.motion = walk;
         var r = sm.AddState("Run"); r.motion = run;
         var p = sm.AddState("Pose"); p.motion = pose;
@@ -202,30 +216,120 @@ public static class JamPumpkinSetup
         return ctrl;
     }
 
-    static void BuildPrefab(AnimatorController ctrl, StringBuilder sb)
-    {
-        var model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPrefab);
-        if (model == null) { sb.AppendLine("prefab: model missing at " + ModelPrefab); return; }
+    // ---------------- Avatar ----------------
 
-        var scene = EditorSceneManager.NewPreviewScene();
+    // The model's Animator needs a humanoid avatar whose bone names exist in the model's own skeleton,
+    // or nothing animates. Check every candidate and take the best match.
+    static Avatar PickAvatar(StringBuilder sb)
+    {
+        // Read the model's real bone names and mesh source.
+        var names = new HashSet<string>();
+        string meshFbx = null;
+        Avatar current = null;
+        var contents = PrefabUtility.LoadPrefabContents(ModelPrefab);
         try
         {
-            var root = new GameObject("PumpkinMonster");
-            EditorSceneManager.MoveGameObjectToScene(root, scene);
-            var inst = (GameObject)PrefabUtility.InstantiatePrefab(model, scene);
+            foreach (var t in contents.GetComponentsInChildren<Transform>(true)) names.Add(t.name);
+            var smr = contents.GetComponentInChildren<SkinnedMeshRenderer>(true);
+            if (smr != null && smr.sharedMesh != null) meshFbx = AssetDatabase.GetAssetPath(smr.sharedMesh);
+            var anims = contents.GetComponentsInChildren<Animator>(true);
+            var legacy = contents.GetComponentsInChildren<Animation>(true);
+            var a = anims.FirstOrDefault();
+            current = a != null ? a.avatar : null;
+            sb.AppendLine($"model: {names.Count} transforms, {anims.Length} Animator(s), {legacy.Length} legacy Animation(s), animator enabled={(a != null && a.enabled)}, mesh from {meshFbx ?? "?"}");
+            var hips = names.Where(n => n.IndexOf("hips", StringComparison.OrdinalIgnoreCase) >= 0 || n.IndexOf("spine", StringComparison.OrdinalIgnoreCase) >= 0).Take(4);
+            sb.AppendLine("  sample bones: " + string.Join(", ", hips));
+        }
+        finally { PrefabUtility.UnloadPrefabContents(contents); }
+
+        var candidates = new List<(string label, Avatar av)>();
+        if (current != null) candidates.Add(("current (" + current.name + ")", current));
+        if (!string.IsNullOrEmpty(meshFbx) && meshFbx.EndsWith(".fbx", StringComparison.OrdinalIgnoreCase))
+        {
+            var av = EnsureHumanAvatar(meshFbx, sb);
+            if (av != null) candidates.Add(("mesh source " + meshFbx, av));
+        }
+        var walkAv = AssetDatabase.LoadAllAssetsAtPath(WalkFbx).OfType<Avatar>().FirstOrDefault();
+        if (walkAv != null) candidates.Add(("walk clip rig", walkAv));
+
+        Avatar best = null;
+        int bestMissing = int.MaxValue;
+        foreach (var (label, av) in candidates)
+        {
+            if (!av.isValid || !av.isHuman) { sb.AppendLine($"  avatar {label}: valid={av.isValid} human={av.isHuman} (skipped)"); continue; }
+            var bones = av.humanDescription.human;
+            var missing = bones.Where(b => !names.Contains(b.boneName)).Select(b => b.boneName).ToList();
+            sb.AppendLine($"  avatar {label}: {bones.Length} bones mapped, {missing.Count} missing from the model" +
+                          (missing.Count > 0 ? " (e.g. " + string.Join(", ", missing.Take(3)) + ")" : ""));
+            if (missing.Count < bestMissing) { bestMissing = missing.Count; best = av; }
+        }
+        sb.AppendLine(best != null ? $"avatar chosen: {best.name} ({bestMissing} missing bones)" : "avatar chosen: NONE FOUND");
+        return best;
+    }
+
+    static Avatar EnsureHumanAvatar(string fbxPath, StringBuilder sb)
+    {
+        var imp = AssetImporter.GetAtPath(fbxPath) as ModelImporter;
+        if (imp == null) return null;
+        if (imp.animationType != ModelImporterAnimationType.Human)
+        {
+            sb.AppendLine($"  {fbxPath} was {imp.animationType}; switching to Humanoid so its own rig gets an avatar");
+            imp.animationType = ModelImporterAnimationType.Human;
+            imp.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+            imp.SaveAndReimport();
+        }
+        return AssetDatabase.LoadAllAssetsAtPath(fbxPath).OfType<Avatar>().FirstOrDefault();
+    }
+
+    // ---------------- Prefab ----------------
+
+    static void BuildPrefab(AnimatorController ctrl, Avatar avatar, StringBuilder sb)
+    {
+        GameObject root;
+        bool existing = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath) != null;
+        PreviewSceneHolder holder = null;
+        if (existing)
+        {
+            root = PrefabUtility.LoadPrefabContents(PrefabPath);
+        }
+        else
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPrefab);
+            if (model == null) { sb.AppendLine("prefab: model missing at " + ModelPrefab); return; }
+            holder = new PreviewSceneHolder();
+            root = new GameObject("PumpkinMonster");
+            EditorSceneManager.MoveGameObjectToScene(root, holder.scene);
+            var inst = (GameObject)PrefabUtility.InstantiatePrefab(model, holder.scene);
             inst.transform.SetParent(root.transform, false);
             inst.name = "Model";
-            var a = inst.GetComponent<Animator>();
-            if (a == null) a = inst.GetComponentInChildren<Animator>();
-            a.runtimeAnimatorController = ctrl;
-            a.applyRootMotion = false;
-            a.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
-            root.AddComponent<PumpkinMonster>();
-            if (a.GetComponent<PumpkinIK>() == null) a.gameObject.AddComponent<PumpkinIK>();
-            PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
-            sb.AppendLine($"prefab: {PrefabPath} (animator on '{a.name}', avatar={(a.avatar ? a.avatar.name : "none")})");
         }
-        finally { EditorSceneManager.ClosePreviewScene(scene); }
+
+        try
+        {
+            var a = root.GetComponentInChildren<Animator>(true);
+            if (a == null) { sb.AppendLine("prefab: no Animator found"); return; }
+            a.enabled = true;
+            a.runtimeAnimatorController = ctrl;
+            if (avatar != null) a.avatar = avatar;
+            a.applyRootMotion = false;
+            a.cullingMode = AnimatorCullingMode.AlwaysAnimate; // never skip animating while visible-ish
+            if (root.GetComponent<PumpkinMonster>() == null) root.AddComponent<PumpkinMonster>();
+            if (a.GetComponent<PumpkinIK>() == null) a.gameObject.AddComponent<PumpkinIK>();
+            var pm = root.GetComponent<PumpkinMonster>();
+            PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
+            sb.AppendLine($"prefab: {PrefabPath} {(existing ? "updated" : "created")} (animator on '{a.name}', avatar={(a.avatar ? a.avatar.name : "none")}, huntSpeed={pm.huntSpeed}, wanderSpeed={pm.wanderSpeed})");
+        }
+        finally
+        {
+            if (existing) PrefabUtility.UnloadPrefabContents(root);
+            holder?.Dispose();
+        }
+    }
+
+    sealed class PreviewSceneHolder : IDisposable
+    {
+        public readonly UnityEngine.SceneManagement.Scene scene = EditorSceneManager.NewPreviewScene();
+        public void Dispose() => EditorSceneManager.ClosePreviewScene(scene);
     }
 
     static void EnsureFolder(string parent, string name)

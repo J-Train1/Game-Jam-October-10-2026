@@ -3,7 +3,8 @@ using UnityEngine.InputSystem;
 
 // First-person controller for the corn maze.
 // Walk / sprint with stamina, mouse look, gravity and a light head bob.
-// Exposes IsSprinting + NoiseRadius so the scarecrows can "hear" the player later.
+// Sprint works in any direction (forward, sideways, backwards).
+// Exposes IsSprinting + NoiseRadius so the monsters can "hear" the player.
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
@@ -33,7 +34,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float bobFrequencySprint = 2.6f;
     [SerializeField] float bobAmplitude = 0.04f;
 
-    [Header("Noise (for scarecrow hearing)")]
+    [Header("Noise (for monster hearing)")]
     [SerializeField] float walkNoiseRadius = 3f;
     [SerializeField] float sprintNoiseRadius = 14f;
 
@@ -99,8 +100,8 @@ public class PlayerController : MonoBehaviour
         }
         IsMoving = input.sqrMagnitude > 0.01f;
 
-        // --- Sprint + stamina ---
-        bool wantsSprint = canControl && kb.leftShiftKey.isPressed && IsMoving && input.y > 0.1f;
+        // --- Sprint + stamina (any direction) ---
+        bool wantsSprint = canControl && kb.leftShiftKey.isPressed && IsMoving;
         if (exhausted && stamina >= minStaminaToSprint) exhausted = false;
         IsSprinting = wantsSprint && !exhausted && stamina > 0f;
 

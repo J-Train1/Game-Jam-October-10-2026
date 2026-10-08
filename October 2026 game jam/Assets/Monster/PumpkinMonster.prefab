@@ -27,7 +27,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1.2, y: 1.2, z: 1.2}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2166383143515764926}
@@ -47,12 +47,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PumpkinMonster
   wanderSpeed: 1.1
   searchSpeed: 2.2
-  huntSpeed: 6.5
+  huntSpeed: 3.4
   turnSpeed: 540
   freezeTurnTime: 0.08
   wanderAnimSpeed: 0.75
   searchAnimSpeed: 1.1
-  huntAnimSpeed: 1.2
+  huntAnimSpeed: 1.8
+  huntAnimState: Walk
   sightRange: 12
   sightHalfAngle: 70
   closeSense: 2.5
@@ -61,7 +62,7 @@ MonoBehaviour:
   eyeHeight: 1.6
   frozenBodyLook: 0.35
   frozenLookClamp: 0.25
-  catchDistance: 1.1
+  catchDistance: 0.8
   reloadDelay: 1.2
   logStates: 1
 --- !u!1001 &936156479679006762
@@ -120,6 +121,10 @@ PrefabInstance:
       propertyPath: m_Controller
       value: 
       objectReference: {fileID: 9100000, guid: c5e6ce7958a26cc4da56db199ea9fd3a, type: 2}
+    - target: {fileID: 7498068909865988146, guid: 6ae7c489815f91c40ad5971a5798f4bd, type: 3}
+      propertyPath: m_CullingMode
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7498068909865988146, guid: 6ae7c489815f91c40ad5971a5798f4bd, type: 3}
       propertyPath: m_ApplyRootMotion
       value: 0
