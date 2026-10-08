@@ -4,9 +4,11 @@ using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 // Generates a new corn maze every time the game starts.
-// Recursive backtracker (long winding corridors + dead ends), then a few extra
-// openings so there are loops to escape scarecrows. Start on the south edge,
-// exit gap on the north edge.
+// 1) Recursive backtracker: long winding corridors.
+// 2) Braiding: most dead ends get one wall knocked out, joining them to the farthest-away
+//    neighbor, which creates big loops you can circle around scarecrows with.
+// 3) A few random extra openings for variety.
+// Start on the south edge, exit gap on the north edge.
 [DefaultExecutionOrder(-100)] // build the maze before anything else asks about it
 public class MazeGenerator : MonoBehaviour
 {
@@ -18,8 +20,14 @@ public class MazeGenerator : MonoBehaviour
     [Min(3)] public int cellsX = 10;
     [Min(3)] public int cellsY = 10;
     public float tileSize = 2.5f;
-    [Tooltip("Chance to knock out an extra wall, creating loops. 0 = perfect maze (one path only).")]
-    [Range(0f, 0.4f)] public float loopChance = 0.1f;
+
+    [Header("Layout")]
+    [Tooltip("Fraction of dead ends to KEEP. The rest are braided into loops. 0 = no dead ends, 1 = keep all.")]
+    [Range(0f, 1f)] public float deadEndKeep = 0.35f;
+    [Tooltip("Never braid below this many dead ends (keys hide in dead ends).")]
+    [Min(0)] public int minDeadEnds = 6;
+    [Tooltip("Extra chance to knock out any interior wall, for variety.")]
+    [Range(0f, 0.4f)] public float loopChance = 0.06f;
 
     [Header("Seed")]
     public bool randomSeedEachRun = true;
@@ -48,6 +56,9 @@ public class MazeGenerator : MonoBehaviour
     Transform root;
     public int LastSeed => lastSeed;
     public int StalkCount { get; private set; }
+    public int BraidedCount { get; private set; }
+
+    static readonly Vector2Int[] Dirs = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
 
     void Awake()
     {
@@ -80,7 +91,7 @@ public class MazeGenerator : MonoBehaviour
         SizeGround();
 
         sw.Stop();
-        Debug.Log($"[Maze] seed {lastSeed}: {Grid.width}x{Grid.height} tiles, {StalkCount} stalks, {Grid.deadEnds.Count} dead ends, built in {sw.ElapsedMilliseconds} ms");
+        Debug.Log($"[Maze] seed {lastSeed}: {Grid.width}x{Grid.height} tiles, {StalkCount} stalks, {Grid.deadEnds.Count} dead ends ({BraidedCount} braided), built in {sw.ElapsedMilliseconds} ms");
         OnMazeBuilt?.Invoke(Grid);
     }
 
@@ -91,9 +102,8 @@ public class MazeGenerator : MonoBehaviour
         var g = new MazeGrid(cellsX, cellsY, tileSize, transform.position);
         var visited = new bool[cellsX, cellsY];
         var stack = new Stack<Vector2Int>();
-        var dirs = new[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
 
-        // Recursive backtracker from a random cell.
+        // 1) Recursive backtracker from a random cell.
         var startCell = new Vector2Int(rng.Next(cellsX), rng.Next(cellsY));
         visited[startCell.x, startCell.y] = true;
         Open(g, MazeGrid.CellToTile(startCell.x, startCell.y));
@@ -103,22 +113,28 @@ public class MazeGenerator : MonoBehaviour
         {
             var cur = stack.Peek();
             options.Clear();
-            foreach (var d in dirs)
+            foreach (var d in Dirs)
             {
                 var n = cur + d;
-                if (n.x >= 0 && n.y >= 0 && n.x < cellsX && n.y < cellsY && !visited[n.x, n.y]) options.Add(d);
+                if (InCells(n) && !visited[n.x, n.y]) options.Add(d);
             }
             if (options.Count == 0) { stack.Pop(); continue; }
             var dir = options[rng.Next(options.Count)];
             var next = cur + dir;
-            var curTile = MazeGrid.CellToTile(cur.x, cur.y);
-            Open(g, curTile + dir);                                    // knock down the wall between
+            Open(g, MazeGrid.CellToTile(cur.x, cur.y) + dir);   // knock down the wall between
             Open(g, MazeGrid.CellToTile(next.x, next.y));
             visited[next.x, next.y] = true;
             stack.Push(next);
         }
 
-        // Extra openings -> loops. Only walls between two cells (never corner pillars).
+        // Start: middle of the south edge.
+        var sCell = new Vector2Int(cellsX / 2, 0);
+        g.startTile = MazeGrid.CellToTile(sCell.x, sCell.y);
+
+        // 2) Braid dead ends into big loops.
+        Braid(g, rng);
+
+        // 3) A few random extra openings. Only walls between two cells (never corner pillars).
         for (int x = 1; x < g.width - 1; x++)
         for (int y = 1; y < g.height - 1; y++)
         {
@@ -128,15 +144,14 @@ public class MazeGenerator : MonoBehaviour
                 g.open[x, y] = true;
         }
 
-        // Start: middle of the south edge. Exit: random cell on the north edge, opening through the outer wall.
-        var sCell = new Vector2Int(cellsX / 2, 0);
-        g.startTile = MazeGrid.CellToTile(sCell.x, sCell.y);
+        // Exit: random cell on the north edge, opening through the outer wall.
         int exitCellX = rng.Next(cellsX);
         g.exitInsideTile = MazeGrid.CellToTile(exitCellX, cellsY - 1);
         g.exitTile = g.exitInsideTile + Vector2Int.up;   // the outer border tile
         g.open[g.exitTile.x, g.exitTile.y] = true;
 
-        // Dead ends (for keys): open cell tiles with a single way in, not the start or exit.
+        // Final dead-end list (for keys): open cell tiles with a single way in, not the start or exit.
+        g.deadEnds.Clear();
         for (int cx = 0; cx < cellsX; cx++)
         for (int cy = 0; cy < cellsY; cy++)
         {
@@ -147,6 +162,56 @@ public class MazeGenerator : MonoBehaviour
         return g;
     }
 
+    void Braid(MazeGrid g, System.Random rng)
+    {
+        BraidedCount = 0;
+        var ends = new List<Vector2Int>();
+        for (int cx = 0; cx < cellsX; cx++)
+        for (int cy = 0; cy < cellsY; cy++)
+        {
+            var t = MazeGrid.CellToTile(cx, cy);
+            if (g.OpenNeighborCount(t) == 1 && t != g.startTile) ends.Add(t);
+        }
+        // Shuffle, then always handle the start first so the player never spawns in a dead end.
+        for (int i = ends.Count - 1; i > 0; i--) { int j = rng.Next(i + 1); (ends[i], ends[j]) = (ends[j], ends[i]); }
+        bool startIsDeadEnd = g.OpenNeighborCount(g.startTile) == 1;
+        if (startIsDeadEnd) ends.Insert(0, g.startTile);
+
+        int total = ends.Count;
+        int keep = Mathf.Max(minDeadEnds, Mathf.RoundToInt(total * deadEndKeep));
+        int toBraid = Mathf.Max(0, total - keep);
+        if (startIsDeadEnd) toBraid = Mathf.Max(toBraid, 1);
+
+        foreach (var end in ends)
+        {
+            if (BraidedCount >= toBraid) break;
+            if (g.OpenNeighborCount(end) != 1) continue; // already fixed by an earlier braid
+
+            // Candidate walls: closed walls from this cell to a neighboring cell inside the maze.
+            var dist = g.DistanceField(end);
+            Vector2Int bestWall = default;
+            int bestScore = -1;
+            bool found = false;
+            foreach (var d in Dirs)
+            {
+                var wall = end + d;
+                var neighborCell = end + d * 2;
+                if (neighborCell.x <= 0 || neighborCell.y <= 0 ||
+                    neighborCell.x >= g.width - 1 || neighborCell.y >= g.height - 1) continue;
+                if (g.open[wall.x, wall.y]) continue;
+                // Prefer the neighbor that's farthest away on foot: that makes the biggest loop.
+                int nd = dist[neighborCell.x, neighborCell.y];
+                if (nd < 0) nd = 10000;
+                int score = nd * 4 + rng.Next(4); // light randomness to break ties
+                if (score > bestScore) { bestScore = score; bestWall = wall; found = true; }
+            }
+            if (!found) continue;
+            g.open[bestWall.x, bestWall.y] = true;
+            BraidedCount++;
+        }
+    }
+
+    bool InCells(Vector2Int c) => c.x >= 0 && c.y >= 0 && c.x < cellsX && c.y < cellsY;
     static void Open(MazeGrid g, Vector2Int t) => g.open[t.x, t.y] = true;
 
     // ---------------- Corn ----------------
