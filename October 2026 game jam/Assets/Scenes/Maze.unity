@@ -1124,6 +1124,7 @@ MonoBehaviour:
   slabPrefab: {fileID: 182620, guid: 12f742a90c04b8b4db9029fed710e2a4, type: 3}
   crossPrefab: {fileID: 144752, guid: c448d6882a8691b4f896fb64dcee9850, type: 3}
   candlePrefab: {fileID: 151036, guid: 6e54d9d2b64fb03498a18c717c82ed44, type: 3}
+  gravePumpkinPrefab: {fileID: 4998500796570060237, guid: a4adf9b8dd04bfd45b47924118fbcbab, type: 3}
   coffinLength: 2.1
   slabSize: 2.6
   slabHeight: 0.22
@@ -1137,6 +1138,8 @@ MonoBehaviour:
   coffinLightIntensity: 1.2
   coffinLightRange: 6
   cardHeight: 3.8
+  finaleDistance: 2.6
+  startAtEnd: 0
 --- !u!114 &1715918347
 MonoBehaviour:
   m_ObjectHideFlags: 0

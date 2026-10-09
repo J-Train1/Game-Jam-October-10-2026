@@ -87,6 +87,8 @@ public class PumpkinMonster : MonoBehaviour
     bool scareHandRight = true;
     Vector3 scareHandPos, scareHandHint;
     float scareHandWeight;
+    Vector3 otherHandPos, otherHandHint;
+    float otherHandWeight;
 
     void OnEnable() { if (!All.Contains(this)) All.Add(this); }
     void OnDestroy() => All.Remove(this);
@@ -262,6 +264,7 @@ public class PumpkinMonster : MonoBehaviour
         ScareMode = false;
         IsFrozen = false;
         scareHandWeight = 0f;
+        otherHandWeight = 0f;
         lookWeight = 0f;
         turnVel = 0f;
         lastSenseTime = -999f;
@@ -274,6 +277,14 @@ public class PumpkinMonster : MonoBehaviour
     }
 
     /// <summary>Jump scare only: drive one hand to a world position with IK (weight 0 = off).</summary>
+    /// <summary>The second hand during a scare (the one SetScareHand isn't using). Used by the two-handed grab.</summary>
+    public void SetScareOtherHand(Vector3 position, Vector3 elbowHint, float weight)
+    {
+        otherHandPos = position;
+        otherHandHint = elbowHint;
+        otherHandWeight = Mathf.Clamp01(weight);
+    }
+
     public void SetScareHand(bool rightHand, Vector3 position, Vector3 elbowHint, float weight)
     {
         scareHandRight = rightHand;
@@ -338,7 +349,11 @@ public class PumpkinMonster : MonoBehaviour
             a.SetLookAtWeight(1f, 0.6f, 1f, 0f, 0.5f);
             a.SetLookAtPosition(playerHead.position);
 
-            a.SetIKPositionWeight(other, 0f);
+            var otherHint = scareHandRight ? AvatarIKHint.LeftElbow : AvatarIKHint.RightElbow;
+            a.SetIKPositionWeight(other, otherHandWeight);
+            a.SetIKPosition(other, otherHandPos);
+            a.SetIKHintPositionWeight(otherHint, otherHandWeight * 0.6f);
+            a.SetIKHintPosition(otherHint, otherHandHint);
             a.SetIKPositionWeight(goal, scareHandWeight);
             a.SetIKPosition(goal, scareHandPos);
             a.SetIKHintPositionWeight(hint, scareHandWeight * 0.6f);

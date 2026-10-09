@@ -15,7 +15,7 @@ public class Narrator : MonoBehaviour
     [Tooltip("How long tutorial lines stay fully visible.")]
     public float tutorialHold = 3.6f;
 
-    class Line { public string main, sub; public float hold; public Color subColor; }
+    class Line { public string main, sub; public float hold; public Color subColor; public bool finale; }
     readonly List<Line> queue = new List<Line>();
     Line current;
     float currentStart;
@@ -83,6 +83,13 @@ public class Narrator : MonoBehaviour
                 Enqueue("Something hunts these rows.", "it cannot move while your light is on it", tutorialHold, Warn, false);
                 Enqueue("Run if you have to. It will hear you.", "[ SHIFT ]  sprint - running is loud", tutorialHold, Hint, false);
                 Enqueue("You have three hearts.", "lose them all and the field keeps you", tutorialHold, Warn, false);
+                // The send-off: slower, redder, the edges of the screen bleed, and the second line arrives late.
+                queue.Add(new Line
+                {
+                    main = "The last one who woke here never left.",
+                    sub = "now he wears a pumpkin for a head... and he's been carving one for you.",
+                    hold = 6.5f, subColor = HorrorUI.A(HorrorUI.BloodBright, 0.95f), finale = true,
+                });
             }
             else
             {
@@ -100,7 +107,7 @@ public class Narrator : MonoBehaviour
     // Contextual tutorials the first time each thing happens.
     void WatchForTips()
     {
-        if (PumpkinMonster.PlayerIsCaught || DeathScreen.IsShowing || WinScreen.IsShowing) return;
+        if (PumpkinMonster.PlayerIsCaught || DeathScreen.IsShowing || WinScreen.IsShowing || GraveFinale.IsPlaying) return;
 
         foreach (var m in PumpkinMonster.All)
         {
@@ -147,7 +154,7 @@ public class Narrator : MonoBehaviour
     void OnGUI()
     {
         if (current == null || Event.current == null) return;
-        if (PumpkinMonster.PlayerIsCaught || DeathScreen.IsShowing || WinScreen.IsShowing) return;
+        if (PumpkinMonster.PlayerIsCaught || DeathScreen.IsShowing || WinScreen.IsShowing || GraveFinale.IsPlaying) return;
         GUI.depth = -500;
 
         float t = Time.time - currentStart;
@@ -161,21 +168,38 @@ public class Narrator : MonoBehaviour
             mainStyle = HorrorUI.Style(HorrorUI.SerifFont);
             subStyle = HorrorUI.Style(HorrorUI.TypeFont);
         }
-        mainStyle.fontSize = HorrorUI.Px(38);
-        subStyle.fontSize = HorrorUI.Px(21);
+        bool fin = current.finale;
+        mainStyle.fontSize = HorrorUI.Px(fin ? 44 : 38);
+        subStyle.fontSize = HorrorUI.Px(fin ? 25 : 21);
 
         float sw = Screen.width, sh = Screen.height, k = sh / 1080f;
-        float y = sh * 0.74f;
-        // Dark smudge so it reads over the moonlit corn.
-        HorrorUI.Glow(new Rect(sw * 0.2f, y - 60 * k, sw * 0.6f, 200 * k), new Color(0f, 0f, 0f, 0.55f * a));
+        float y = sh * (fin ? 0.68f : 0.74f);
+
+        if (fin)
+        {
+            // The world dims and the edges bleed while it speaks.
+            HorrorUI.Vignette(0.75f * a, Color.black);
+            HorrorUI.Vignette(0.35f * a * (0.8f + 0.2f * Mathf.Sin(Time.time * 5.5f)), HorrorUI.Blood);
+            HorrorUI.Glow(new Rect(sw * 0.08f, y - 110 * k, sw * 0.84f, 330 * k), new Color(0f, 0f, 0f, 0.75f * a));
+        }
+        else
+        {
+            // Dark smudge so it reads over the moonlit corn.
+            HorrorUI.Glow(new Rect(sw * 0.2f, y - 60 * k, sw * 0.6f, 200 * k), new Color(0f, 0f, 0f, 0.55f * a));
+        }
 
         float drift = (1f - a) * 6f * k; // drifts up slightly as it appears / settles
-        HorrorUI.Shaky(new Rect(0, y + drift, sw, 56 * k), current.main, mainStyle, HorrorUI.A(HorrorUI.Bone, a),
-                       Time.time, 0.7f * k, 1.5f * k, 1.2f * k, 0.6f, 0.04f, current.main.Length);
+        HorrorUI.Shaky(new Rect(0, y + drift, sw, 60 * k), current.main, mainStyle, HorrorUI.A(HorrorUI.Bone, a),
+                       Time.time, (fin ? 1.3f : 0.7f) * k, (fin ? 3f : 1.5f) * k, (fin ? 2.2f : 1.2f) * k,
+                       fin ? 1.4f : 0.6f, fin ? 0.1f : 0.04f, current.main.Length);
         if (!string.IsNullOrEmpty(current.sub))
         {
-            float sa = a * Mathf.Clamp01((t - 0.35f) / 0.5f);
-            HorrorUI.Text(new Rect(0, y + 58 * k + drift, sw, 30 * k), current.sub, subStyle, HorrorUI.A(current.subColor, current.subColor.a * sa), 0f, 2f * k);
+            float delay = fin ? 1.8f : 0.35f;
+            float sa = a * Mathf.Clamp01((t - delay) / (fin ? 1.2f : 0.5f));
+            var sr = new Rect(0, y + (fin ? 70 : 58) * k + drift, sw, 34 * k);
+            var sc = HorrorUI.A(current.subColor, current.subColor.a * sa);
+            if (fin) HorrorUI.Shaky(sr, current.sub, subStyle, sc, Time.time, 0.9f * k, 0.5f * k, 1.2f * k, 0.8f, 0.06f, 77);
+            else HorrorUI.Text(sr, current.sub, subStyle, sc, 0f, 2f * k);
         }
     }
 }

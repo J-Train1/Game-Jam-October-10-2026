@@ -18,7 +18,7 @@ public class WinScreen : MonoBehaviour
     int heartsLeft, heartsMax;
     string line;
     GUIStyle title, sub, stats, prompt;
-    bool canRestart;
+    bool canRestart, fromBlack;
 
     static readonly string[] Lines =
     {
@@ -28,18 +28,30 @@ public class WinScreen : MonoBehaviour
         "You made it out. It will remember you.",
     };
 
-    public static void Show()
+    public static void Show() => Show(false, -1f);
+
+    /// <summary>fromBlack: the screen is already black (after the ending scare), so skip the slow fade.
+    /// escapeTime: seconds to show as the time in the corn (-1 = time since the level loaded).</summary>
+    public static void Show(bool fromBlack, float escapeTime)
     {
         if (IsShowing) return;
+        pendingFromBlack = fromBlack;
+        pendingEscapeTime = escapeTime;
         var go = new GameObject("WinScreen");
         go.AddComponent<WinScreen>();
     }
+
+    static bool pendingFromBlack;
+    static float pendingEscapeTime = -1f;
 
     void Awake()
     {
         IsShowing = true;
         start = Time.unscaledTime;
-        escapeTime = Time.timeSinceLevelLoad;
+        fromBlack = pendingFromBlack;
+        if (fromBlack) start -= fadeTime - 0.9f; // already black: hold a beat of darkness, then the title
+        escapeTime = pendingEscapeTime >= 0f ? pendingEscapeTime : Time.timeSinceLevelLoad;
+        pendingFromBlack = false; pendingEscapeTime = -1f;
         line = Lines[Random.Range(0, Lines.Length)];
         var lives = FindFirstObjectByType<PlayerLives>();
         heartsLeft = lives != null ? lives.Remaining : 0;
@@ -79,7 +91,7 @@ public class WinScreen : MonoBehaviour
         float t = Time.unscaledTime - start;
         float sw = Screen.width, sh = Screen.height, k = sh / 1080f;
 
-        float fade = HorrorUI.Smooth(t / fadeTime);
+        float fade = fromBlack ? 1f : HorrorUI.Smooth(t / fadeTime);
         HorrorUI.Fill(new Rect(0, 0, sw, sh), new Color(0f, 0f, 0f, fade));
 
         if (title == null)

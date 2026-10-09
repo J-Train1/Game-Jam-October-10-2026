@@ -23,6 +23,8 @@ public class ExitTrail : MonoBehaviour
     public GameObject slabPrefab;
     public GameObject crossPrefab;
     public GameObject candlePrefab;
+    [Tooltip("The pumpkin that comes out of the grave in the ending. Empty = the spawner's pumpkin prefab.")]
+    public GameObject gravePumpkinPrefab;
     [Tooltip("Coffin length (m). It lies across the clearing, facing you.")]
     public float coffinLength = 2.1f;
     public float slabSize = 2.6f;
@@ -44,6 +46,41 @@ public class ExitTrail : MonoBehaviour
     public float cardHeight = 3.8f;
 
     public Transform Coffin { get; private set; }
+    public Bounds CoffinBounds => coffinBounds;
+    /// <summary>The whole stone altar (slab + coffin). The ending's pumpkin comes up from the dirt just outside it.</summary>
+    public Bounds AltarBounds => altarBounds;
+    Bounds altarBounds;
+    [Tooltip("How close (m) to the edge of the stone slab starts the ending.")]
+    public float finaleDistance = 2.6f;
+    [Header("Testing")]
+    [Tooltip("TEMPORARY: start the run on the trail just before the coffin, to test the ending. Untick when done.")]
+    public bool startAtEnd = true;
+    bool startAtEndDone;
+    public List<Light> CandleLights => candleLights;
+
+    /// <summary>One candle on the altar: its light, its glowing flame material(s) and where its wick is.</summary>
+    public class Candle
+    {
+        public Transform transform;
+        public Light light;
+        public Vector3 wick;
+        public readonly List<Material> flameMats = new List<Material>();
+        public readonly List<Color> flameEmission = new List<Color>();
+        public float baseIntensity;
+        public bool lit = true;
+
+        /// <summary>0 = out, 1 = normal, above 1 = flaring.</summary>
+        public void SetFlame(float k)
+        {
+            if (light != null) { light.enabled = k > 0.001f; light.intensity = baseIntensity * k; }
+            for (int i = 0; i < flameMats.Count; i++)
+                if (flameMats[i] != null) flameMats[i].SetColor("_EmissionColor", flameEmission[i] * k);
+        }
+    }
+    public readonly List<Candle> Candles = new List<Candle>();
+    public Light CoffinLight => coffinLight;
+    /// <summary>While true the trail stops animating its lights (the ending snuffs them out).</summary>
+    public bool LightsOverridden { get; set; }
     public bool Won { get; private set; }
 
     Transform root;
@@ -198,6 +235,7 @@ public class ExitTrail : MonoBehaviour
             var ls = slab.transform.localScale;
             slab.transform.localScale = new Vector3(ls.x * slabSize / b.size.x, ls.y * slabHeight / b.size.y, ls.z * slabSize / b.size.z);
             PlaceBottomCenter(slab.transform, c);
+            altarBounds = Bounds(slab.transform);
             b = Bounds(slab.transform);
             top = b.max.y;
             AddBox(slab.transform, b);
@@ -217,6 +255,7 @@ public class ExitTrail : MonoBehaviour
             Coffin = coffin.transform;
         }
         else coffinBounds = new Bounds(c + Vector3.up * 0.5f, new Vector3(coffinLength, 1f, 0.8f));
+        if (altarBounds.size == Vector3.zero) altarBounds = coffinBounds; else altarBounds.Encapsulate(coffinBounds);
 
         // Cross at the head (behind the coffin, away from the player).
         if (crossPrefab != null)
@@ -247,8 +286,18 @@ public class ExitTrail : MonoBehaviour
                 FitHeight(cd.transform, candleHeight * (i < 4 ? 1f : 1.4f));
                 PlaceBottomCenter(cd.transform, spots[i]);
                 var b = Bounds(cd.transform);
-                // Only every other candle gets a real light (cheaper, and the flicker reads better unevenly).
-                if (i % 2 == 0) candleLights.Add(MakeLight(altar, new Vector3(b.center.x, b.max.y + 0.08f, b.center.z), candleColor, candleIntensity, candleRange));
+                // Every candle gets its own small light, so each one going out in the ending is visible.
+                var candle = new Candle { transform = cd.transform, wick = new Vector3(b.center.x, b.max.y, b.center.z), baseIntensity = candleIntensity * 0.7f };
+                candle.light = MakeLight(altar, candle.wick + Vector3.up * 0.08f, candleColor, candle.baseIntensity, candleRange * 0.85f);
+                candleLights.Add(candle.light);
+                foreach (var r in cd.GetComponentsInChildren<Renderer>(true))
+                    foreach (var m in r.materials) // instances, so each flame can go out on its own
+                        if (m.HasProperty("_EmissionColor") && m.IsKeywordEnabled("_EMISSION"))
+                        {
+                            candle.flameMats.Add(m);
+                            candle.flameEmission.Add(m.GetColor("_EmissionColor"));
+                        }
+                Candles.Add(candle);
             }
         }
 
@@ -260,22 +309,31 @@ public class ExitTrail : MonoBehaviour
 
     void Update()
     {
+        if (startAtEnd && !startAtEndDone && root != null && PlayerController.Instance != null)
+        {
+            startAtEndDone = true;
+            // A few steps down the trail from where the ending kicks in, facing the coffin.
+            var spawn = new Vector3(altarBounds.center.x, altarBounds.min.y + 0.05f, altarBounds.min.z - finaleDistance - 3f);
+            PlayerController.Instance.Respawn(spawn, Quaternion.LookRotation(Vector3.forward));
+            Debug.Log("[Trail] TEST: started at the end of the trail (untick Start At End on ExitTrail when done)");
+        }
         float t = Time.time;
-        for (int i = 0; i < candleLights.Count; i++)
-            candleLights[i].intensity = candleIntensity * (0.75f + 0.25f * Mathf.PerlinNoise(t * 6f, i * 3.7f));
-        if (coffinLight != null) coffinLight.intensity = coffinLightIntensity * (0.85f + 0.15f * Mathf.Sin(t * 0.8f));
+        if (!LightsOverridden)
+        for (int i = 0; i < Candles.Count; i++)
+            Candles[i].SetFlame(0.75f + 0.25f * Mathf.PerlinNoise(t * 6f, i * 3.7f));
+        if (coffinLight != null && !LightsOverridden) coffinLight.intensity = coffinLightIntensity * (0.85f + 0.15f * Mathf.Sin(t * 0.8f));
 
         if (Won || root == null || PumpkinMonster.PlayerIsCaught) return;
         var pc = PlayerController.Instance;
         if (pc == null) return;
         Vector3 p = pc.transform.position;
-        Vector3 closest = coffinBounds.ClosestPoint(new Vector3(p.x, coffinBounds.center.y, p.z));
+        Vector3 closest = altarBounds.ClosestPoint(new Vector3(p.x, altarBounds.center.y, p.z));
         Vector3 d = closest - p; d.y = 0f;
-        if (d.magnitude <= touchDistance)
+        if (d.magnitude <= finaleDistance)
         {
             Won = true;
-            Debug.Log("[Trail] coffin touched: WIN");
-            WinScreen.Show();
+            Debug.Log("[Trail] coffin touched: ending");
+            GraveFinale.Begin(); // one last scare at the grave, then YOU ESCAPED
         }
     }
 
