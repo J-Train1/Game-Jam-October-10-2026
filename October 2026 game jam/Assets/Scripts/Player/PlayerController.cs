@@ -34,8 +34,14 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float bobFrequencySprint = 2.6f;
     [SerializeField] float bobAmplitude = 0.04f;
 
+    [Header("Footsteps & breath")]
+    // Steps land on the low point of each head bob, so sound and camera move together.
+    [SerializeField, Range(0f, 1f)] float walkStepVolume = 0.13f;   // quiet: sneaking is silent to the pumpkins
+    [SerializeField, Range(0f, 1f)] float sprintStepVolume = 0.42f;
+    [SerializeField, Range(0f, 1f)] float breathVolume = 0.6f;
+
     [Header("Noise (for monster hearing)")]
-    [SerializeField] float walkNoiseRadius = 3f;
+    [SerializeField] float walkNoiseRadius = 0f;     // walking is silent to the monsters; only sprinting carries
     [SerializeField] float sprintNoiseRadius = 14f;
 
     public bool IsSprinting { get; private set; }
@@ -56,6 +62,9 @@ public class PlayerController : MonoBehaviour
     bool exhausted;
     float bobTimer;
     Vector3 cameraBasePos;
+    AudioSource stepSrc, breathSrc;
+    float stepPhase, breathLevel;
+    bool wasExhausted;
 
     void Awake()
     {
@@ -64,9 +73,35 @@ public class PlayerController : MonoBehaviour
         stamina = maxStamina;
         if (cameraRoot == null && Camera.main != null) cameraRoot = Camera.main.transform;
         if (cameraRoot != null) cameraBasePos = cameraRoot.localPosition;
+
+        stepSrc = gameObject.AddComponent<AudioSource>();
+        stepSrc.playOnAwake = false; stepSrc.spatialBlend = 0f;
+        breathSrc = gameObject.AddComponent<AudioSource>();
+        breathSrc.playOnAwake = false; breathSrc.spatialBlend = 0f; breathSrc.loop = true;
+        breathSrc.clip = GameAudio.Get("Pant");
+        breathSrc.volume = 0f;
     }
 
-    void OnEnable() => LockCursor(true);
+    void OnEnable()
+    {
+        LockCursor(true);
+        GameSettings.Changed += ApplyFov;
+        ApplyFov();
+    }
+
+    void OnDisable()
+    {
+        GameSettings.Changed -= ApplyFov;
+        breathLevel = 0f;                                 // no panting through a jump scare / cutscene
+        if (breathSrc != null) { breathSrc.volume = 0f; breathSrc.Stop(); }
+    }
+
+    // Field of view from the settings (not while a scare/cutscene owns the camera: this script is off then).
+    void ApplyFov()
+    {
+        var cam = Camera.main;
+        if (cam != null) cam.fieldOfView = GameSettings.Fov;
+    }
 
     /// <summary>Put the player back at a spawn point (after losing a heart): full stamina, camera level, no momentum.</summary>
     public void Respawn(Vector3 position, Quaternion rotation)
@@ -96,9 +131,10 @@ public class PlayerController : MonoBehaviour
         var kb = Keyboard.current;
         var mouse = Mouse.current;
         if (kb == null || mouse == null) return;
+        if (PauseMenu.IsPaused) return; // the pause menu owns the mouse and keyboard
 
-        // Escape frees the cursor, clicking recaptures it.
-        if (kb.escapeKey.wasPressedThisFrame) LockCursor(false);
+        // Escape frees the cursor (or opens the pause menu, which does it), clicking recaptures it.
+        if (kb.escapeKey.wasPressedThisFrame && PauseMenu.Instance == null) LockCursor(false);
         else if (mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked) LockCursor(true);
 
         bool canControl = InputEnabled && Cursor.lockState == CursorLockMode.Locked;
@@ -106,7 +142,8 @@ public class PlayerController : MonoBehaviour
         // --- Look ---
         if (canControl)
         {
-            Vector2 delta = mouse.delta.ReadValue() * mouseSensitivity;
+            Vector2 delta = mouse.delta.ReadValue() * mouseSensitivity * GameSettings.Sensitivity;
+            if (GameSettings.InvertY) delta.y = -delta.y;
             transform.Rotate(0f, delta.x, 0f);
             pitch = Mathf.Clamp(pitch - delta.y, -maxPitch, maxPitch);
             if (cameraRoot != null) cameraRoot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
@@ -152,16 +189,48 @@ public class PlayerController : MonoBehaviour
         controller.Move((horizontalVelocity + Vector3.up * verticalVelocity) * Time.deltaTime);
 
         UpdateHeadBob();
+        UpdateSounds();
+    }
+
+    // Footsteps in the dry leaves (heavier and quicker when sprinting) and panting when out of breath.
+    void UpdateSounds()
+    {
+        float speed = new Vector3(horizontalVelocity.x, 0f, horizontalVelocity.z).magnitude;
+        if (controller.isGrounded && speed > 0.2f)
+        {
+            // Same rhythm as the head bob (one step per bob cycle), landing at the bottom of the bob.
+            float freq = IsSprinting ? bobFrequencySprint : bobFrequencyWalk;
+            float prev = stepPhase;
+            stepPhase += Time.deltaTime * freq;
+            if (Mathf.Floor(stepPhase - 0.8f) > Mathf.Floor(prev - 0.8f)) // bottom of the bob (camera eases in a touch late)
+            {
+                stepSrc.pitch = Random.Range(0.93f, 1.05f) * (IsSprinting ? 1.04f : 1f);
+                float v = (IsSprinting ? sprintStepVolume : walkStepVolume) * Mathf.Clamp01(speed / (IsSprinting ? sprintSpeed : walkSpeed));
+                stepSrc.PlayOneShot(GameAudio.Pick("Step", 10), v * Random.Range(0.85f, 1f) * GameSettings.Fx);
+            }
+        }
+        else stepPhase = 0f;
+
+        if (exhausted && !wasExhausted) stepSrc.PlayOneShot(GameAudio.Get("Gasp"), breathVolume * GameSettings.Fx);
+        wasExhausted = exhausted;
+        // Keep panting a little after you can sprint again, then fade out.
+        float target = exhausted ? 1f : (stamina < maxStamina * 0.45f && regenTimer <= 0f ? 0.5f : 0f);
+        breathLevel = Mathf.MoveTowards(breathLevel, target, Time.deltaTime * (target > breathLevel ? 1.5f : 0.4f));
+        if (breathSrc.clip != null)
+        {
+            breathSrc.volume = breathLevel * breathVolume * GameSettings.Fx;
+            if (breathLevel > 0.01f && !breathSrc.isPlaying) breathSrc.Play();
+            else if (breathLevel <= 0.01f && breathSrc.isPlaying) breathSrc.Stop();
+        }
     }
 
     void UpdateHeadBob()
     {
         if (cameraRoot == null) return;
         float speed = new Vector3(horizontalVelocity.x, 0f, horizontalVelocity.z).magnitude;
-        if (controller.isGrounded && speed > 0.2f)
+        if (controller.isGrounded && speed > 0.2f && GameSettings.HeadBob)
         {
-            float freq = IsSprinting ? bobFrequencySprint : bobFrequencyWalk;
-            bobTimer += Time.deltaTime * freq * Mathf.PI * 2f;
+            bobTimer = stepPhase * Mathf.PI * 2f; // shares the footstep rhythm
             float amp = bobAmplitude * (IsSprinting ? 1.6f : 1f);
             Vector3 offset = new Vector3(Mathf.Cos(bobTimer * 0.5f) * amp * 0.5f, Mathf.Sin(bobTimer) * amp, 0f);
             cameraRoot.localPosition = Vector3.Lerp(cameraRoot.localPosition, cameraBasePos + offset, 12f * Time.deltaTime);

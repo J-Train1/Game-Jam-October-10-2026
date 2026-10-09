@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 // middle and its halves fall away (leaving an empty slot), then the hearts you have left pulse like a heartbeat.
 //  - Hearts left: everything resets out of sight (you're back at the start of the SAME maze, keys and unlocked
 //    locks kept, stamina and battery refilled, every pumpkin moved far away), then the black fades back to play.
-//  - No hearts left: GAME OVER, then "Press any key to play again" (new maze).
+//  - No hearts left: GAME OVER, then PLAY AGAIN (new maze) / BACK TO MENU buttons.
 // Created on demand by JumpScare; no scene setup. Hearts are drawn in code (no art needed).
 public class DeathScreen : MonoBehaviour
 {
@@ -30,7 +30,8 @@ public class DeathScreen : MonoBehaviour
 
     PumpkinMonster catcher;
     int max, before, after;
-    bool gameOver, respawned, released, crackPlayed, canRestart;
+    bool gameOver, respawned, released, crackPlayed, canRestart, gameOverPlayed;
+    EndChoice choice;
     float start;
     Texture2D full, empty, halfL, halfR;
     AudioSource src;
@@ -93,7 +94,20 @@ public class DeathScreen : MonoBehaviour
     void Update()
     {
         float t = T;
-        if (!crackPlayed && t >= TBreak) { crackPlayed = true; if (crackClip) src.PlayOneShot(crackClip, 0.9f); }
+        if (!crackPlayed && t >= TBreak)
+        {
+            crackPlayed = true;
+            var snap = GameAudio.CrackSmall();
+            if (snap != null) src.PlayOneShot(snap, 0.9f * GameSettings.Fx); else if (crackClip) src.PlayOneShot(crackClip, 0.9f * GameSettings.Fx);
+            var thud = GameAudio.Get("Impact_Low");
+            if (thud != null) src.PlayOneShot(thud, (gameOver ? 0.8f : 0.45f) * GameSettings.Fx);
+        }
+        if (gameOver && !gameOverPlayed && t >= TGameOver)
+        {
+            gameOverPlayed = true;
+            var g = GameAudio.Get("Game_Over");
+            if (g != null) src.PlayOneShot(g, 0.85f * GameSettings.Fx);
+        }
 
         if (!gameOver)
         {
@@ -103,11 +117,9 @@ public class DeathScreen : MonoBehaviour
             return;
         }
 
-        if (!canRestart && t >= TGameOver + gameOverIn + promptDelay) canRestart = true;
-        if (!canRestart) return;
-        bool pressed = (Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame)
-                    || (Mouse.current != null && (Mouse.current.leftButton.wasPressedThisFrame || Mouse.current.rightButton.wasPressedThisFrame));
-        if (pressed) SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        if (!canRestart && t >= TGameOver + gameOverIn + promptDelay * 0.5f) canRestart = true;
+        if (choice == null) choice = new EndChoice(src);
+        choice.Update(canRestart);
     }
 
     // Back to the start of the same maze; everything that could hurt you moved far away. Hidden under black.
@@ -219,9 +231,7 @@ public class DeathScreen : MonoBehaviour
             HorrorUI.Shaky(new Rect(0, ty + 150 * k, sw, 50 * k), gameOverLine, subStyle, HorrorUI.A(HorrorUI.Bone, a3 * 0.85f),
                            t, 0.8f * k, 5f * k, 1f * k, 0.8f, 0.05f, 11);
 
-            float blink = 0.55f + 0.45f * Mathf.Sin(t * 2.6f);
-            HorrorUI.Text(new Rect(0, ty + 230 * k, sw, 36 * k), "press any key to try again", promptStyle,
-                          HorrorUI.A(HorrorUI.Ash, a2 * blink), 0f, 2f * k);
+            if (choice != null) choice.OnGUI(ty + 270 * k, a2, canRestart);
         }
 
         // Film over everything: dark edges (bleeding red on game over) and grain.
@@ -229,6 +239,7 @@ public class DeathScreen : MonoBehaviour
         if (gameOver && t >= TGameOver)
             HorrorUI.Vignette(Mathf.Clamp01((t - TGameOver) / 1.5f) * (0.35f + 0.15f * Heartbeat(t)), HorrorUI.Blood);
         HorrorUI.Grain(0.07f * blackA);
+        if (choice != null) choice.DrawFadeOut();
     }
 
     void DrawBreaking(Rect r, float t, float alpha, float k)

@@ -121,7 +121,8 @@ public class ExitGate : MonoBehaviour
         src.playOnAwake = false;
         clinkClip = MakeClink();
         clankClip = MakeClank();
-        creakClip = MakeCreak();
+        creakClip = GameAudio.Get("Gate_Open");
+        if (creakClip == null) creakClip = MakeCreak();
         clunkClip = MakeClunk();
 
         Debug.Log($"[Gate] built at tile {g.exitTile}: {(singleLeaf ? "single leaf (mesh not readable, couldn't split)" : "split into two halves")}, {locks.Count} locks");
@@ -538,7 +539,7 @@ public class ExitGate : MonoBehaviour
         t.position += new Vector3(groundPoint.x - b.center.x, groundPoint.y - b.min.y, groundPoint.z - b.center.z);
     }
 
-    void Play(AudioClip c, float v) { if (src != null && c != null) src.PlayOneShot(c, v * volume); }
+    void Play(AudioClip c, float v) { if (src != null && c != null) src.PlayOneShot(c, v * volume * GameSettings.Fx); }
     IEnumerator PlayLater(AudioClip c, float delay, float v) { yield return new WaitForSeconds(delay); Play(c, v); }
 
     // ---------------- Synth sounds (placeholders until real recordings) ----------------

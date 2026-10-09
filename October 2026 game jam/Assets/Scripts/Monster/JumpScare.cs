@@ -187,6 +187,9 @@ public class JumpScare : MonoBehaviour
     float baseFov, baseNear, side, sideVal, rollVal;
     bool stabRight;
     bool running, blacked, handedOff, haveLocalFace;
+    float prevHold = -99f;
+    [Header("Wood cracks (on top of the scream)")]
+    [Range(0f, 1f)] public float crackVolume = 1f;
     Vector3 localFace;
     float flashAlpha, redAlpha, staticAlpha, blackAlpha, bloodAlpha, jaw, orangeAlpha;
     static Texture2D jawTex;
@@ -291,11 +294,13 @@ public class JumpScare : MonoBehaviour
 
         audioSrc = gameObject.AddComponent<AudioSource>();
         audioSrc.spatialBlend = 0f;
-        audioSrc.volume = volume;
+        audioSrc.volume = volume * GameSettings.Fx;
         audioSrc.priority = 0;
         audioSrc.playOnAwake = false;
         audioSrc.clip = scareClip != null ? scareClip : BuildAudio();
         audioSrc.Play();
+        prevHold = -99f;
+        GameAudio.Play2D(GameAudio.CrackBig(), crackVolume);          // the hit: something snaps
 
         Debug.Log($"[JumpScare] start: {v}");
     }
@@ -469,6 +474,9 @@ public class JumpScare : MonoBehaviour
         float n3 = Mathf.PerlinNoise(tf * 0.91f, 6.2f) * 2f - 1f;
 
         // The ending's GRAB is choreographed on its own (you get picked up and thrown, so the camera leaves its spot).
+        if (!inFinal) ScareSounds(prevHold, hold);
+        prevHold = hold;
+
         if (v == Variant.Grab) { GrabLate(t, hold, inFinal, fin, head, s, n1, n2, n3, vib); return; }
 
         // ---- Variant behavior -> outputs ----
@@ -568,7 +576,7 @@ public class JumpScare : MonoBehaviour
         if (color != null)
         {
             color.contrast.value = contrast * landed;
-            color.postExposure.value = Mathf.Lerp(1.6f, 0f, Mathf.Clamp01(t / 0.12f)) + oPulse * 0.25f; // blown-out hit, then pulses
+            color.postExposure.value = Mathf.Lerp(1.6f * FlashMul, 0f, Mathf.Clamp01(t / 0.12f)) + oPulse * 0.25f; // blown-out hit, then pulses
             color.saturation.value = -20f * landed;
         }
 
@@ -578,6 +586,44 @@ public class JumpScare : MonoBehaviour
         float staticSpike = Random.value < 0.08f ? Random.Range(0.15f, 0.35f) : 0f; // occasional signal hiccup
         staticAlpha = inFinal ? Mathf.Lerp(0.2f, 1f, fin * fin) : (hold >= 0f ? staticDuringAttack + staticSpike : 0f);
         if (staticAlpha > 0.001f) RefreshStatic();
+    }
+
+    // ---------------- Wood cracks timed to the action ----------------
+
+    static bool Crossed(float a, float b, float x) => a < x && b >= x;
+
+    void ScareSounds(float a, float b)
+    {
+        if (b < 0f) return;
+        switch (v)
+        {
+            case Variant.Bite:
+            {
+                float period = 1f / biteRate;
+                for (int i = 1; i < 12; i++)
+                {
+                    float at = i * period;
+                    if (!Crossed(a, b, at)) continue;
+                    if (i == switchAfterBites) GameAudio.Play2D(GameAudio.CrackBig(), crackVolume * 0.9f);   // the head snaps over
+                    else if (i % 2 == 0) GameAudio.Play2D(GameAudio.CrackSmall(), crackVolume * 0.45f);
+                }
+                break;
+            }
+            case Variant.Stab:
+                foreach (float h in stabHits) if (Crossed(a, b, h)) GameAudio.Play2D(GameAudio.CrackBig(), crackVolume);
+                break;
+            case Variant.Spin:
+                if (Crossed(a, b, spinStart)) GameAudio.Play2D(GameAudio.Creak(), crackVolume * 0.9f);      // the neck twisting
+                if (Crossed(a, b, spinEnd)) GameAudio.Play2D(GameAudio.CrackBig(), crackVolume);            // snaps back
+                for (int k = 0; k < rollSteps; k++)
+                    if (Crossed(a, b, rollStart + k * rollStepTime)) GameAudio.Play2D(GameAudio.CrackSmall(), crackVolume * 0.8f);
+                break;
+            case Variant.Grab:
+                if (Crossed(a, b, grabShakeEnd)) GameAudio.Play2D(GameAudio.Creak(), crackVolume * 0.9f);   // hoisted up
+                if (Crossed(a, b, grabThrowStart)) GameAudio.Play2D(GameAudio.CrackSmall(), crackVolume * 0.8f);
+                if (Crossed(a, b, grabThrowEnd)) { GameAudio.Play2D(GameAudio.CrackBig(), crackVolume); GameAudio.Play2D(GameAudio.CrackSmall(), crackVolume * 0.7f); } // the jaws
+                break;
+        }
     }
 
     // ---------------- Variants ----------------
@@ -794,7 +840,7 @@ public class JumpScare : MonoBehaviour
         if (color != null)
         {
             color.contrast.value = contrast * landed;
-            color.postExposure.value = Mathf.Lerp(1.6f, 0f, Mathf.Clamp01(t / 0.12f)) + 0.5f * inside;
+            color.postExposure.value = Mathf.Lerp(1.6f * FlashMul, 0f, Mathf.Clamp01(t / 0.12f)) + 0.5f * inside;
             color.saturation.value = -20f * landed;
         }
 
@@ -860,8 +906,9 @@ public class JumpScare : MonoBehaviour
         if (!running) return;
         GUI.depth = -1000;
         var full = new Rect(0, 0, Screen.width, Screen.height);
-        if (staticAlpha > 0.001f && staticTex != null) Draw(full, staticTex, new Color(1f, 1f, 1f, staticAlpha));
-        if (redAlpha > 0.001f) Draw(full, Texture2D.whiteTexture, new Color(0.7f, 0f, 0f, Mathf.Clamp01(redAlpha)));
+        bool calm = GameSettings.ReduceFlashing;
+        if (staticAlpha > 0.001f && staticTex != null) Draw(full, staticTex, new Color(1f, 1f, 1f, staticAlpha * (calm && blackAlpha < 0.5f ? 0.3f : 1f)));
+        if (redAlpha > 0.001f) Draw(full, Texture2D.whiteTexture, new Color(0.7f, 0f, 0f, Mathf.Clamp01(redAlpha) * (calm ? 0.5f : 1f)));
         if (orangeAlpha > 0.001f) Draw(full, Texture2D.whiteTexture, new Color(jawGlow.r, jawGlow.g * 0.8f, jawGlow.b, Mathf.Clamp01(orangeAlpha)));
         if (jaw > 0.001f)
         {
@@ -872,7 +919,7 @@ public class JumpScare : MonoBehaviour
             GUI.DrawTextureWithTexCoords(new Rect(0, sh - travel, sw, jh), jawTex, new Rect(0f, 0f, 1f, 1f));                  // bottom jaw, teeth up
             GUI.DrawTextureWithTexCoords(new Rect(0, travel - jh, sw, jh), jawTex, new Rect(0.5f / 7f, 1f, 1f, -1f));          // top jaw, teeth down, offset
         }
-        if (flashAlpha > 0.001f) Draw(full, Texture2D.whiteTexture, new Color(1f, 1f, 1f, flashAlpha));
+        if (flashAlpha > 0.001f) Draw(full, Texture2D.whiteTexture, new Color(1f, 1f, 1f, flashAlpha * FlashMul));
         if (blackAlpha > 0.001f) Draw(full, Texture2D.whiteTexture, new Color(0f, 0f, 0f, blackAlpha));
         GUI.color = Color.white;
     }
@@ -905,6 +952,9 @@ public class JumpScare : MonoBehaviour
         tex.Apply(false, false);
         return tex;
     }
+
+    // REDUCE FLASHING: the white hit, static and red flashes are toned way down.
+    static float FlashMul => GameSettings.ReduceFlashing ? 0.25f : 1f;
 
     static void Draw(Rect r, Texture tex, Color c)
     {

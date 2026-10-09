@@ -63,7 +63,8 @@ public class KeyManager : MonoBehaviour
         audioSrc = gameObject.AddComponent<AudioSource>();
         audioSrc.spatialBlend = 0f;
         audioSrc.playOnAwake = false;
-        pickupClip = MakePickupClip();
+        pickupClip = GameAudio.Get("Key_Bell");
+        if (pickupClip == null) pickupClip = MakePickupClip();
 
         Debug.Log($"[Keys] placed {keys.Count} keys at {string.Join(", ", tiles)} ({g.deadEnds.Count} dead ends available)");
         OnKeyCollected?.Invoke(Collected, Total);
@@ -206,7 +207,7 @@ public class KeyManager : MonoBehaviour
         RemoveAt(i);
         if (k != null) Destroy(k.gameObject);
         Collected++;
-        if (audioSrc != null && pickupClip != null) audioSrc.PlayOneShot(pickupClip, pickupVolume);
+        if (audioSrc != null && pickupClip != null) audioSrc.PlayOneShot(pickupClip, pickupVolume * GameSettings.Fx);
         Debug.Log($"[Keys] picked up key {Collected}/{Total}");
         if (spawnPumpkinPerKey && PumpkinSpawner.Instance != null) PumpkinSpawner.Instance.SpawnOne();
         OnKeyCollected?.Invoke(Collected, Total);

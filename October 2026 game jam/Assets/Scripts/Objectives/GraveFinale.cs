@@ -64,6 +64,8 @@ public class GraveFinale : MonoBehaviour
     {
         IsPlaying = true;
         Debug.Log("[Finale] start");
+        if (rumbleClip == null) rumbleClip = GameAudio.Get("Rumble_Loop");
+        if (clawClip == null) clawClip = GameAudio.Get("Claw");
         escapeTime = Time.timeSinceLevelLoad;
         cam = Camera.main;
         var trail = ExitTrail.Instance;
@@ -191,7 +193,7 @@ public class GraveFinale : MonoBehaviour
         {
             rt += Time.deltaTime;
             float u = rt / rumbleTime;
-            rumbleSrc.volume = Mathf.Lerp(0.1f, 1f, u * u);
+            rumbleSrc.volume = Mathf.Lerp(0.1f, 1f, u * u) * GameSettings.Fx;
             shake = 0.15f + 1.1f * u * u;
             if (coffin != null)
             {
@@ -258,6 +260,8 @@ public class GraveFinale : MonoBehaviour
 
         // 5b. Lurch: the head bursts out, then it drags itself up in jerky, stop-motion steps, reaching for you.
         Play(riseClip, MakeGroan, 1f);
+        GameAudio.Play2D(GameAudio.CrackBig(), 0.9f);    // the ground splits as its head breaks out
+        GameAudio.Play2D(GameAudio.Creak(), 0.6f);
         shake = 0.6f;
         Vector3 reach = camPos + (risePoint - camPos).normalized * 0.5f + Vector3.down * 0.12f + side * -0.12f;
         float t5 = 0f;
@@ -366,7 +370,7 @@ public class GraveFinale : MonoBehaviour
     {
         if (oneShots == null) return;
         var c = clip != null ? clip : fallback();
-        if (c != null) oneShots.PlayOneShot(c, vol);
+        if (c != null) oneShots.PlayOneShot(c, vol * GameSettings.Fx);
     }
 
     // ---------------- Placeholder sounds (replace with real clips) ----------------

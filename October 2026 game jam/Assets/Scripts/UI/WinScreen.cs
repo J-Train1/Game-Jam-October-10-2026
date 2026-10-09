@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 
 // Shown when the player touches the coffin: controls off, the pumpkins stop, the HUD hides, the screen slowly
 // fades to black, then "YOU ESCAPED" trembles in over an ember glow, with a line of narration, the time spent
-// in the corn and the hearts you kept. Any key / click plays again (new maze).
+// in the corn and the hearts you kept. Then PLAY AGAIN (new maze) / BACK TO MENU buttons.
 // Created on demand (WinScreen.Show()); no scene setup.
 public class WinScreen : MonoBehaviour
 {
@@ -18,7 +18,8 @@ public class WinScreen : MonoBehaviour
     int heartsLeft, heartsMax;
     string line;
     GUIStyle title, sub, stats, prompt;
-    bool canRestart, fromBlack;
+    bool canRestart, fromBlack, choirPlayed;
+    EndChoice choice;
 
     static readonly string[] Lines =
     {
@@ -57,7 +58,7 @@ public class WinScreen : MonoBehaviour
         heartsLeft = lives != null ? lives.Remaining : 0;
         heartsMax = lives != null ? lives.Max : 0;
 
-        if (PlayerController.Instance != null) PlayerController.Instance.InputEnabled = false;
+        if (PlayerController.Instance != null) { PlayerController.Instance.InputEnabled = false; PlayerController.Instance.enabled = false; } // so clicking a button doesn't re-grab the mouse
         var hud = FindFirstObjectByType<FlashlightHUD>();
         if (hud != null) hud.gameObject.SetActive(false);
         foreach (var m in PumpkinMonster.All.ToArray())
@@ -74,15 +75,26 @@ public class WinScreen : MonoBehaviour
     void Update()
     {
         float t = Time.unscaledTime - start;
-        if (!canRestart && t >= fadeTime + textDelay + promptDelay) canRestart = true;
-        if (!canRestart) return;
-        bool pressed = (Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame)
-                    || (Mouse.current != null && (Mouse.current.leftButton.wasPressedThisFrame || Mouse.current.rightButton.wasPressedThisFrame));
-        if (pressed)
+        if (!choirPlayed && t >= fadeTime - 0.4f)
         {
-            IsShowing = false;
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+            choirPlayed = true;
+            var c = GameAudio.Get("Win_Choir");
+            if (c != null)
+            {
+                var s = gameObject.AddComponent<AudioSource>();
+                s.playOnAwake = false; s.spatialBlend = 0f;
+                s.PlayOneShot(c, 0.8f * GameSettings.Amb);
+            }
         }
+        if (!canRestart && t >= fadeTime + textDelay + promptDelay) canRestart = true;
+        if (choice == null)
+        {
+            var src = gameObject.AddComponent<AudioSource>();
+            src.playOnAwake = false; src.spatialBlend = 0f;
+            choice = new EndChoice(src);
+        }
+        choice.Update(canRestart);
+        if (choice.Leaving) IsShowing = false;
     }
 
     void OnGUI()
@@ -134,11 +146,12 @@ public class WinScreen : MonoBehaviour
         if (heartsMax > 0) statLine += $"        hearts kept   {heartsLeft} / {heartsMax}";
         HorrorUI.Text(new Rect(0, ty + 252 * k, sw, 40 * k), statLine, stats, HorrorUI.A(HorrorUI.Ash, a3), 0f, 2f * k);
 
-        float blink = 0.55f + 0.45f * Mathf.Sin(t * 2.6f);
-        HorrorUI.Text(new Rect(0, sh * 0.82f, sw, 36 * k), "press any key to wander back in", prompt,
-                      HorrorUI.A(HorrorUI.Ash, a4 * blink), 0f, 2f * k);
-
         HorrorUI.Vignette(0.9f * fade, Color.black);
         HorrorUI.Grain(0.07f * fade);
+        if (choice != null)
+        {
+            choice.OnGUI(sh * 0.78f, a4, canRestart);
+            choice.DrawFadeOut();
+        }
     }
 }

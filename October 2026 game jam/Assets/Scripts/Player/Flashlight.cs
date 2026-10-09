@@ -75,6 +75,10 @@ public class Flashlight : MonoBehaviour
     void Start()
     {
         if (viewCamera == null && Camera.main != null) viewCamera = Camera.main.transform;
+        if (audioSource == null) { audioSource = gameObject.AddComponent<AudioSource>(); audioSource.playOnAwake = false; audioSource.spatialBlend = 0f; }
+        if (clickOn == null) clickOn = GameAudio.Get("Flashlight_On");
+        if (clickOff == null) clickOff = GameAudio.Get("Flashlight_Off");
+        if (clickDead == null) clickDead = GameAudio.Get("Flashlight_Dead");
         if (FindFirstObjectByType<FlashlightHUD>() == null)
             new GameObject("FlashlightHUD").AddComponent<FlashlightHUD>();
     }
@@ -83,7 +87,7 @@ public class Flashlight : MonoBehaviour
     {
         var kb = Keyboard.current;
         var mouse = Mouse.current;
-        bool controlling = Cursor.lockState == CursorLockMode.Locked &&
+        bool controlling = Cursor.lockState == CursorLockMode.Locked && !PauseMenu.IsPaused &&
                            (PlayerController.Instance == null || PlayerController.Instance.InputEnabled);
         if (controlling && ((kb != null && kb.fKey.wasPressedThisFrame) || (mouse != null && mouse.rightButton.wasPressedThisFrame)))
             Toggle();
@@ -194,7 +198,7 @@ public class Flashlight : MonoBehaviour
 
     void Play(AudioClip clip)
     {
-        if (clip != null && audioSource != null) audioSource.PlayOneShot(clip);
+        if (clip != null && audioSource != null) audioSource.PlayOneShot(clip, 0.8f * GameSettings.Fx);
     }
 
     void OnDrawGizmosSelected()

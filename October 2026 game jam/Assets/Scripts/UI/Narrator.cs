@@ -154,7 +154,7 @@ public class Narrator : MonoBehaviour
     void OnGUI()
     {
         if (current == null || Event.current == null) return;
-        if (PumpkinMonster.PlayerIsCaught || DeathScreen.IsShowing || WinScreen.IsShowing || GraveFinale.IsPlaying) return;
+        if (PumpkinMonster.PlayerIsCaught || DeathScreen.IsShowing || WinScreen.IsShowing || GraveFinale.IsPlaying || PauseMenu.IsPaused) return;
         GUI.depth = -500;
 
         float t = Time.time - currentStart;
