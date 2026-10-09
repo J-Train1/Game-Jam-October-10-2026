@@ -45,6 +45,7 @@ public class PlayerController : MonoBehaviour
     public bool IsExhausted => exhausted;
     public float NoiseRadius => IsSprinting ? sprintNoiseRadius : IsMoving ? walkNoiseRadius : 0f;
     public bool InputEnabled { get; set; } = true;
+    public Transform CameraRoot => cameraRoot;
 
     CharacterController controller;
     Vector3 horizontalVelocity;
@@ -66,6 +67,29 @@ public class PlayerController : MonoBehaviour
     }
 
     void OnEnable() => LockCursor(true);
+
+    /// <summary>Put the player back at a spawn point (after losing a heart): full stamina, camera level, no momentum.</summary>
+    public void Respawn(Vector3 position, Quaternion rotation)
+    {
+        if (controller == null) controller = GetComponent<CharacterController>();
+        controller.enabled = false;
+        transform.SetPositionAndRotation(position, rotation);
+        controller.enabled = true;
+        horizontalVelocity = Vector3.zero;
+        verticalVelocity = 0f;
+        stamina = maxStamina;
+        exhausted = false;
+        regenTimer = 0f;
+        pitch = 0f;
+        bobTimer = 0f;
+        IsSprinting = false;
+        IsMoving = false;
+        if (cameraRoot != null)
+        {
+            cameraRoot.localPosition = cameraBasePos;
+            cameraRoot.localRotation = Quaternion.identity;
+        }
+    }
 
     void Update()
     {

@@ -45,9 +45,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4db77738fee43274eadf144bbfadcf76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PumpkinMonster
-  wanderSpeed: 1.1
-  searchSpeed: 2.2
-  huntSpeed: 3.4
+  wanderSpeed: 1.3
+  searchSpeed: 2.3
+  huntSpeed: 3.8
   turnSpeed: 540
   freezeTurnTime: 0.08
   wanderAnimSpeed: 0.75

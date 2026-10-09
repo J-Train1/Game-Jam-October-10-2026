@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
-using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
 // Jump scare when a pumpkin catches the player. One of three, picked at random (never the same twice in a row):
@@ -19,7 +18,8 @@ using Random = UnityEngine.Random;
 //
 // All three share: instant hit with a white flash, wide FOV + fisheye bulge, glowing carved face, chromatic
 // aberration, red vignette, crushed contrast, TV static, then a final lunge into the lens, a static flood,
-// and an instant cut to black and silence before the maze reloads with a new seed.
+// and an instant cut to black and silence. Then it hands over to DeathScreen (lose a heart / game over) and
+// puts everything it changed back (camera, lights, effects, the pumpkin's glow) so the run can continue.
 // Created on demand by PumpkinMonster.Catch (no scene setup). To tune, test one variant, or assign a real scream
 // clip, add a JumpScare component to any object in the scene; that one is used instead.
 public class JumpScare : MonoBehaviour
@@ -40,7 +40,8 @@ public class JumpScare : MonoBehaviour
     public float spinHoldTime = 1.75f;
     [Tooltip("The final lunge + full-screen static flood before the cut to black.")]
     public float finalLungeTime = 0.08f;
-    public float blackTime = 0.8f;
+    [Tooltip("Silence on black before the hearts appear.")]
+    public float blackTime = 0.6f;
 
     [Header("Framing")]
     [Tooltip("Face appears this close on frame one...")]
@@ -160,15 +161,17 @@ public class JumpScare : MonoBehaviour
     ColorAdjustments color;
     FilmGrain grain;
     readonly List<Material> glowMats = new List<Material>();
+    readonly List<Color> glowOriginal = new List<Color>();
+    readonly List<bool> glowKeyword = new List<bool>();
     Texture2D staticTex;
     Color32[] staticPixels;
 
     float startTime;
-    Vector3 camPos;
-    Quaternion camStartRot, camTargetRot, monsterBaseRot;
-    float baseFov, side, sideVal, rollVal;
+    Vector3 camPos, camLocalPos;
+    Quaternion camStartRot, camTargetRot, monsterBaseRot, camLocalRot;
+    float baseFov, baseNear, side, sideVal, rollVal;
     bool stabRight;
-    bool running, blacked, reloading, haveLocalFace;
+    bool running, blacked, handedOff, haveLocalFace;
     Vector3 localFace;
     float flashAlpha, redAlpha, staticAlpha, blackAlpha, bloodAlpha;
 
@@ -204,6 +207,11 @@ public class JumpScare : MonoBehaviour
     {
         if (running) return;
         running = true;
+        blacked = false; handedOff = false; haveLocalFace = false;
+        sideVal = 0f; rollVal = 0f; bloodAlpha = 0f;
+        flashAlpha = redAlpha = staticAlpha = blackAlpha = 0f;
+        glowMats.Clear(); glowOriginal.Clear(); glowKeyword.Clear();
+
         monster = m;
         cam = Camera.main;
         startTime = Time.time;
@@ -220,12 +228,19 @@ public class JumpScare : MonoBehaviour
         // Monster into scare mode (creepy pose, face locked on the camera, AI off).
         monster.BeginJumpScare();
         var anim = monster.GetComponentInChildren<Animator>();
+        chest = null;
         if (anim != null && anim.isHuman)
         {
             chest = anim.GetBoneTransform(HumanBodyBones.UpperChest);
             if (chest == null) chest = anim.GetBoneTransform(HumanBodyBones.Chest);
             if (chest == null) chest = anim.GetBoneTransform(HumanBodyBones.Spine);
         }
+
+        // Remember the camera so it can be put back afterwards.
+        camLocalPos = cam.transform.localPosition;
+        camLocalRot = cam.transform.localRotation;
+        baseFov = cam.fieldOfView;
+        baseNear = cam.nearClipPlane;
 
         // Directions: from the camera to the monster, level.
         camPos = cam.transform.position;
@@ -237,13 +252,12 @@ public class JumpScare : MonoBehaviour
         monsterBaseRot = Quaternion.LookRotation(-lookDir);
         monster.transform.rotation = monsterBaseRot;
 
-        baseFov = cam.fieldOfView;
         cam.nearClipPlane = 0.02f; // the face (and the claw) get right into the lens
 
         SetupLights();
         SetupGlow();
         SetupPostFx();
-        SetupStatic();
+        if (staticTex == null) SetupStatic();
 
         audioSrc = gameObject.AddComponent<AudioSource>();
         audioSrc.spatialBlend = 0f;
@@ -284,10 +298,12 @@ public class JumpScare : MonoBehaviour
     void SetupGlow()
     {
         foreach (var r in monster.GetComponentsInChildren<Renderer>(true))
-        foreach (var mat in r.materials) // instances; the scene reloads afterwards anyway
+        foreach (var mat in r.materials) // per-monster instances
         {
             if (mat == null || !mat.HasProperty("_EmissionColor") || !mat.HasProperty("_EmissionMap")) continue;
             if (mat.GetTexture("_EmissionMap") == null) continue;
+            glowOriginal.Add(mat.GetColor("_EmissionColor"));
+            glowKeyword.Add(mat.IsKeywordEnabled("_EMISSION"));
             mat.EnableKeyword("_EMISSION");
             mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             glowMats.Add(mat);
@@ -330,6 +346,34 @@ public class JumpScare : MonoBehaviour
         staticPixels = new Color32[160 * 90];
     }
 
+    // Put back everything the scare changed, so play can continue after a respawn.
+    void Cleanup()
+    {
+        running = false;
+        if (cam != null)
+        {
+            cam.transform.localPosition = camLocalPos;
+            cam.transform.localRotation = camLocalRot;
+            cam.fieldOfView = baseFov;
+            cam.nearClipPlane = baseNear;
+        }
+        if (faceLight != null) Destroy(faceLight.gameObject);
+        if (innerLight != null) Destroy(innerLight.gameObject);
+        if (fxVolume != null) Destroy(fxVolume.gameObject);
+        if (fxProfile != null) Destroy(fxProfile);
+        if (audioSrc != null) Destroy(audioSrc);
+        for (int i = 0; i < glowMats.Count; i++)
+        {
+            var mat = glowMats[i];
+            if (mat == null) continue;
+            mat.SetColor("_EmissionColor", glowOriginal[i]);
+            if (!glowKeyword[i]) mat.DisableKeyword("_EMISSION");
+        }
+        glowMats.Clear(); glowOriginal.Clear(); glowKeyword.Clear();
+        if (monster != null) monster.SetScareHand(stabRight, Vector3.zero, Vector3.zero, 0f);
+        flashAlpha = redAlpha = staticAlpha = blackAlpha = 0f;
+    }
+
     // ---------------- Per frame (after animation + IK, so bone tweaks stick) ----------------
 
     void LateUpdate()
@@ -349,10 +393,11 @@ public class JumpScare : MonoBehaviour
                 if (fxVolume != null) fxVolume.weight = 0f;
             }
             blackAlpha = 1f; flashAlpha = redAlpha = staticAlpha = 0f;
-            if (!reloading && t >= FinalEnd + blackTime)
+            if (!handedOff && t >= FinalEnd + blackTime)
             {
-                reloading = true;
-                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+                handedOff = true;
+                DeathScreen.Begin(monster); // takes over the black screen this same frame
+                Cleanup();
             }
             return;
         }

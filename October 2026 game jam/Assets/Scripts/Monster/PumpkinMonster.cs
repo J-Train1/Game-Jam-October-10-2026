@@ -8,14 +8,14 @@ using UnityEngine.SceneManagement;
 // Flashlight: the beam on it (head, chest or feet) means it has seen you. While hunting, it FREEZES in
 // the beam: snaps into a creepy pose, whips around to face you, and locks its head on yours (look-at IK).
 // Unlit, it hurries after you a little faster than you walk; sprinting gets you away. Touching you catches you,
-// which hands the monster to JumpScare (one of three random scares, then the maze restarts).
+// which hands the monster to JumpScare (one of three random scares), then DeathScreen (lose a heart / game over).
 // Moves along the maze tile grid (MazeGrid paths): no NavMesh, no collider needed.
 public class PumpkinMonster : MonoBehaviour
 {
     public enum State { Wander, Hunt, Search }
 
     public static readonly List<PumpkinMonster> All = new List<PumpkinMonster>();
-    /// <summary>Raised once per round when a pumpkin catches the player (before the jump scare starts).</summary>
+    /// <summary>Raised once per catch when a pumpkin catches the player (before the jump scare starts).</summary>
     public static event System.Action<PumpkinMonster> PlayerCaught;
     public static bool PlayerIsCaught { get; private set; }
     public static void ResetRound() => PlayerIsCaught = false;
@@ -74,21 +74,22 @@ public class PumpkinMonster : MonoBehaviour
     List<Vector2Int> path;
     int pathIndex;
     float repathTimer;
-    float lastSenseTime;
+    float lastSenseTime = -999f;
     Vector3 lastKnownPos;
     int hopsLeft;
     string currentAnim;
     float turnVel;
     float lookWeight;
     readonly Vector3[] bodyPoints = new Vector3[3];
+    AnimatorCullingMode baseCulling;
 
     // Jump-scare arm IK (set by JumpScare each frame).
     bool scareHandRight = true;
     Vector3 scareHandPos, scareHandHint;
     float scareHandWeight;
 
-    void OnEnable() => All.Add(this);
-    void OnDisable() => All.Remove(this);
+    void OnEnable() { if (!All.Contains(this)) All.Add(this); }
+    void OnDestroy() => All.Remove(this);
 
     void Awake()
     {
@@ -96,6 +97,7 @@ public class PumpkinMonster : MonoBehaviour
         if (anim != null)
         {
             anim.applyRootMotion = false; // movement is driven by this script
+            baseCulling = anim.cullingMode;
             var relay = anim.GetComponent<PumpkinIK>();
             if (relay == null) relay = anim.gameObject.AddComponent<PumpkinIK>();
             relay.owner = this;
@@ -119,7 +121,7 @@ public class PumpkinMonster : MonoBehaviour
 
     void Update()
     {
-        if (PlayerIsCaught) return;
+        if (PlayerIsCaught || grid == null) return;
         float dt = Time.deltaTime;
 
         bool lit = IsLit();
@@ -232,7 +234,7 @@ public class PumpkinMonster : MonoBehaviour
 
     void Catch()
     {
-        if (PlayerIsCaught) return;
+        if (PlayerIsCaught || WinScreen.IsShowing) return;
         PlayerIsCaught = true;
         if (logStates) Debug.Log($"[Pumpkin] {name} caught the player");
         if (PlayerController.Instance != null) PlayerController.Instance.InputEnabled = false;
@@ -249,6 +251,26 @@ public class PumpkinMonster : MonoBehaviour
         if (anim != null) anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
         PlayAnim("Pose", 0.05f, 1f);
         enabled = false; // AI off; the PumpkinIK relay still drives the look-at
+    }
+
+    /// <summary>
+    /// Back to normal at a new spot, wandering (after a jump scare, or when the player respawns).
+    /// Works whether the monster is mid-scare, hidden, frozen or hunting.
+    /// </summary>
+    public void ResetTo(Vector3 position)
+    {
+        ScareMode = false;
+        IsFrozen = false;
+        scareHandWeight = 0f;
+        lookWeight = 0f;
+        turnVel = 0f;
+        lastSenseTime = -999f;
+        if (!gameObject.activeSelf) gameObject.SetActive(true);
+        transform.SetPositionAndRotation(position, Quaternion.Euler(0f, Random.Range(0, 4) * 90f, 0f));
+        if (anim != null) { anim.cullingMode = baseCulling; anim.speed = 1f; }
+        currentAnim = null;
+        enabled = true;
+        if (grid != null) SetState(State.Wander);
     }
 
     /// <summary>Jump scare only: drive one hand to a world position with IK (weight 0 = off).</summary>
@@ -306,6 +328,9 @@ public class PumpkinMonster : MonoBehaviour
     public void ApplyIK(Animator a)
     {
         if (playerHead == null && Camera.main != null) playerHead = Camera.main.transform;
+        var goal = scareHandRight ? AvatarIKGoal.RightHand : AvatarIKGoal.LeftHand;
+        var other = scareHandRight ? AvatarIKGoal.LeftHand : AvatarIKGoal.RightHand;
+        var hint = scareHandRight ? AvatarIKHint.RightElbow : AvatarIKHint.LeftElbow;
         if (ScareMode && playerHead != null)
         {
             // Jump scare: whole upper body and face pushed straight into the camera.
@@ -313,9 +338,6 @@ public class PumpkinMonster : MonoBehaviour
             a.SetLookAtWeight(1f, 0.6f, 1f, 0f, 0.5f);
             a.SetLookAtPosition(playerHead.position);
 
-            var goal = scareHandRight ? AvatarIKGoal.RightHand : AvatarIKGoal.LeftHand;
-            var other = scareHandRight ? AvatarIKGoal.LeftHand : AvatarIKGoal.RightHand;
-            var hint = scareHandRight ? AvatarIKHint.RightElbow : AvatarIKHint.LeftElbow;
             a.SetIKPositionWeight(other, 0f);
             a.SetIKPositionWeight(goal, scareHandWeight);
             a.SetIKPosition(goal, scareHandPos);
@@ -323,6 +345,8 @@ public class PumpkinMonster : MonoBehaviour
             a.SetIKHintPosition(hint, scareHandHint);
             return;
         }
+        a.SetIKPositionWeight(AvatarIKGoal.LeftHand, 0f);
+        a.SetIKPositionWeight(AvatarIKGoal.RightHand, 0f);
         float target = IsFrozen ? 1f : (CurrentState == State.Hunt ? 0.5f : 0f);
         lookWeight = Mathf.MoveTowards(lookWeight, target, Time.deltaTime * (IsFrozen ? 12f : 4f));
         if (lookWeight <= 0.001f || playerHead == null) { a.SetLookAtWeight(0f); return; }
