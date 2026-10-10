@@ -58,8 +58,8 @@ public class EndChoice
 
     void Load()
     {
-        if (chosen == 1 && Application.CanStreamedLevelBeLoaded(MenuScene)) SceneManager.LoadScene(MenuScene);
-        else SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        if (chosen == 1 && Application.CanStreamedLevelBeLoaded(MenuScene)) SceneLoader.Load(MenuScene);
+        else SceneLoader.Reload();
     }
 
     void Hovered()

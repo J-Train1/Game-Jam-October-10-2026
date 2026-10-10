@@ -39,6 +39,8 @@ public class KeyManager : MonoBehaviour
     public int Collected { get; private set; }
 
     readonly List<Transform> keys = new List<Transform>();
+    /// <summary>The keys still lying in the maze.</summary>
+    public IReadOnlyList<Transform> Keys => keys;
     readonly List<float> phases = new List<float>();
     readonly List<Light> glints = new List<Light>();
     AudioSource audioSrc;

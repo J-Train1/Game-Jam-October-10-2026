@@ -3,8 +3,8 @@ using UnityEngine;
 // The maze's background sound and its little lies.
 //  - Wind through the corn + a low drone, both looping (Ambience & Music volume). They dip during the heart
 //    screen, the win screen and the grave ending.
-//  - Every minute or so, when nothing is actually close, something sounds just BEHIND you: a twig snapping, two
-//    slow steps in the dry leaves, a stalk creaking... and very rarely a cry far off in the field.
+//  - Every 20-50 seconds, when nothing is actually close, something sounds just BEHIND you: mostly a stick snapping
+//    (sometimes a second snap, closer), two slow steps, a stalk creaking... and very rarely a cry far off in the field.
 //    The pumpkins themselves make no sound at all.
 // Added automatically by KeyHUD.
 public class SoundScape : MonoBehaviour
@@ -14,13 +14,14 @@ public class SoundScape : MonoBehaviour
     [Range(0f, 1f)] public float droneVolume = 0.3f;
 
     [Header("Something behind you")]
-    public Vector2 firstScareAfter = new Vector2(35f, 60f);
-    public Vector2 scareInterval = new Vector2(45f, 100f);
+    public Vector2 firstScareAfter = new Vector2(20f, 35f);
+    public Vector2 scareInterval = new Vector2(22f, 48f);
     [Tooltip("No fake noises when a real pumpkin is this close (it would be a giveaway).")]
     public float quietIfPumpkinWithin = 10f;
     [Range(0f, 1f)] public float scareVolume = 0.75f;
 
     AudioSource wind, drone;
+    int lastKind = -1, lastTwig = -1;
     float nextScare, duck = 1f, start;
 
     void Start()
@@ -73,24 +74,53 @@ public class SoundScape : MonoBehaviour
             { nextScare = Time.time + Random.Range(10f, 20f); return; }
 
         var t = pc.transform;
-        Vector3 behind = t.position - t.forward * Random.Range(3f, 5.5f) + t.right * Random.Range(-1.5f, 1.5f) + Vector3.up * 0.3f;
-        float r = Random.value;
-        if (r < 0.4f)
-            GameAudio.PlayAt(GameAudio.CrackSmall(), behind, scareVolume * 0.8f, Random.Range(0.85f, 1.05f));
-        else if (r < 0.75f)
-            StartCoroutine(TwoSteps(behind, t.right));
-        else if (r < 0.92f)
-            GameAudio.PlayAt(GameAudio.Creak(), behind, scareVolume * 0.7f, Random.Range(0.8f, 1f));
-        else
-            GameAudio.Play2D(GameAudio.Get("Far_Cry"), 0.35f); // far off in the field
+        // Somewhere behind you (within about 60 degrees of straight back), 3-7 m away.
+        Vector3 back = Quaternion.AngleAxis(Random.Range(-60f, 60f), Vector3.up) * -t.forward;
+        Vector3 behind = t.position + back * Random.Range(3f, 7f) + Vector3.up * 0.3f;
+
+        // Mostly snapping sticks; never the same kind twice in a row.
+        int kind;
+        do
+        {
+            float r = Random.value;
+            kind = r < 0.45f ? 0 : r < 0.62f ? 1 : r < 0.82f ? 2 : r < 0.95f ? 3 : 4;
+        } while (kind == lastKind && kind != 0);
+        lastKind = kind;
+
+        switch (kind)
+        {
+            case 0: GameAudio.PlayAt(Twig(), behind, scareVolume * Random.Range(0.6f, 0.9f), Random.Range(0.85f, 1.1f)); break;   // a stick snaps
+            case 1: StartCoroutine(TwoSnaps(behind, t.right)); break;                                                            // snap... snap
+            case 2: StartCoroutine(TwoSteps(behind, t.right)); break;                                                            // two slow steps
+            case 3: GameAudio.PlayAt(GameAudio.Creak(), behind, scareVolume * 0.7f, Random.Range(0.8f, 1f)); break;              // a stalk creaks
+            default: GameAudio.Play2D(GameAudio.Get("Far_Cry"), 0.35f); break;                                                   // far off in the field
+        }
+    }
+
+    AudioClip Twig()
+    {
+        int i;
+        do i = Random.Range(1, 8); while (i == lastTwig);
+        lastTwig = i;
+        return Random.value < 0.75f ? GameAudio.Get("Twig_" + i) : GameAudio.CrackSmall();
+    }
+
+    // A stick snaps, a pause... and another one, a little closer.
+    System.Collections.IEnumerator TwoSnaps(Vector3 at, Vector3 side)
+    {
+        GameAudio.PlayAt(Twig(), at, scareVolume * 0.6f, Random.Range(0.9f, 1.05f));
+        yield return new WaitForSeconds(Random.Range(0.9f, 1.8f));
+        var pc = PlayerController.Instance;
+        Vector3 closer = pc != null ? Vector3.Lerp(at, pc.transform.position, 0.3f) + side * Random.Range(-0.5f, 0.5f) : at;
+        GameAudio.PlayAt(Twig(), closer, scareVolume * 0.85f, Random.Range(0.85f, 1f));
     }
 
     // Two slow, heavy steps in the leaves... then nothing.
     System.Collections.IEnumerator TwoSteps(Vector3 at, Vector3 side)
     {
         float pitch = Random.Range(0.72f, 0.85f);
-        GameAudio.PlayAt(GameAudio.Pick("Step", 8), at, scareVolume, pitch);
+        GameAudio.PlayAt(GameAudio.Pick("Step", 10), at, scareVolume, pitch);
         yield return new WaitForSeconds(Random.Range(0.55f, 0.8f));
-        GameAudio.PlayAt(GameAudio.Pick("Step", 8), at + side * 0.4f, scareVolume * 0.9f, pitch * 0.97f);
+        GameAudio.PlayAt(GameAudio.Pick("Step", 10), at + side * 0.4f, scareVolume * 0.9f, pitch * 0.97f);
     }
 }

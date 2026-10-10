@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
-// Esc during play: the game freezes (time + sound), the screen darkens and RESUME / SETTINGS / QUIT TO MENU
+// Esc during play: the game freezes (time + sound), the screen darkens and RESUME / HOW TO PLAY / SETTINGS / QUIT TO MENU
 // appear. Esc again (or RESUME) carries on. Not available during a jump scare, the heart screen, the ending or
 // the win/lose screens. Added automatically by KeyHUD.
 public class PauseMenu : MonoBehaviour
@@ -10,10 +10,11 @@ public class PauseMenu : MonoBehaviour
     public static PauseMenu Instance { get; private set; }
     public static bool IsPaused { get; private set; }
 
-    static readonly string[] Labels = { "RESUME", "SETTINGS", "QUIT TO MENU" };
+    static readonly string[] Labels = { "RESUME", "HOW TO PLAY", "SETTINGS", "QUIT TO MENU" };
 
     SettingsPanel panel;
-    bool settingsOpen, leaving;
+    HowToPlayPanel howTo;
+    bool settingsOpen, howToOpen, leaving;
     int selected, lastSelected = -1;
     float pausedAt, leaveStart;
     AudioSource src;
@@ -28,6 +29,7 @@ public class PauseMenu : MonoBehaviour
         src.spatialBlend = 0f;
         src.ignoreListenerPause = true; // its clicks still play while the game's sound is paused
         panel = new SettingsPanel(src) { OnBack = () => settingsOpen = false };
+        howTo = new HowToPlayPanel(src) { OnBack = () => howToOpen = false };
     }
 
     void OnDestroy()
@@ -50,7 +52,7 @@ public class PauseMenu : MonoBehaviour
             if (Time.unscaledTime - leaveStart > 0.6f)
             {
                 IsPaused = false; Time.timeScale = 1f; AudioListener.pause = false;
-                SceneManager.LoadScene(EndChoice.MenuScene);
+                SceneLoader.Load(EndChoice.MenuScene);
             }
             return;
         }
@@ -64,6 +66,7 @@ public class PauseMenu : MonoBehaviour
             return;
         }
 
+        if (howToOpen) { howTo.Update(); return; }
         if (settingsOpen || panel.Calibrating) { panel.Update(); return; }
 
         if (kb.escapeKey.wasPressedThisFrame) { Resume(); return; }
@@ -78,6 +81,7 @@ public class PauseMenu : MonoBehaviour
         pausedAt = Time.unscaledTime;
         selected = 0;
         settingsOpen = false;
+        howToOpen = false;
         Time.timeScale = 0f;
         AudioListener.pause = true;
         Cursor.lockState = CursorLockMode.None;
@@ -89,6 +93,7 @@ public class PauseMenu : MonoBehaviour
     {
         IsPaused = false;
         settingsOpen = false;
+        howToOpen = false;
         Time.timeScale = 1f;
         AudioListener.pause = false;
         Cursor.lockState = CursorLockMode.Locked;
@@ -102,8 +107,9 @@ public class PauseMenu : MonoBehaviour
         switch (i)
         {
             case 0: Resume(); break;
-            case 1: settingsOpen = true; panel.ResetSelection(); break;
-            case 2: leaving = true; leaveStart = Time.unscaledTime; GameSettings.Save(); break;
+            case 1: howToOpen = true; howTo.Open(); break;
+            case 2: settingsOpen = true; panel.ResetSelection(); break;
+            case 3: leaving = true; leaveStart = Time.unscaledTime; GameSettings.Save(); break;
         }
     }
 
@@ -127,7 +133,11 @@ public class PauseMenu : MonoBehaviour
             HorrorUI.Vignette(0.8f * a, Color.black);
         }
 
-        if (settingsOpen || panel.Calibrating)
+        if (howToOpen)
+        {
+            howTo.OnGUI(a);
+        }
+        else if (settingsOpen || panel.Calibrating)
         {
             panel.OnGUI(sw * 0.5f - 430f * k, 60f * k, a);
         }
@@ -146,7 +156,7 @@ public class PauseMenu : MonoBehaviour
             for (int i = 0; i < Labels.Length; i++)
             {
                 var size = itemStyle.CalcSize(new GUIContent(Labels[i]));
-                var r = new Rect((sw - size.x) * 0.5f, sh * 0.45f + i * 84f * k, size.x, 64f * k);
+                var r = new Rect((sw - size.x) * 0.5f, sh * 0.42f + i * 84f * k, size.x, 64f * k);
                 var hit = new Rect(r.x - 50f * k, r.y - 6f * k, r.width + 100f * k, r.height + 12f * k);
                 if (!leaving && hit.Contains(e.mousePosition))
                 {

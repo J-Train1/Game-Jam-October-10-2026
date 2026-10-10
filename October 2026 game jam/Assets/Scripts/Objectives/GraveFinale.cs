@@ -66,6 +66,7 @@ public class GraveFinale : MonoBehaviour
         Debug.Log("[Finale] start");
         if (rumbleClip == null) rumbleClip = GameAudio.Get("Rumble_Loop");
         if (clawClip == null) clawClip = GameAudio.Get("Claw");
+        if (riseClip == null) riseClip = GameAudio.Get("Dirt_Drag");
         escapeTime = Time.timeSinceLevelLoad;
         cam = Camera.main;
         var trail = ExitTrail.Instance;
@@ -234,6 +235,7 @@ public class GraveFinale : MonoBehaviour
         Vector3 side = Vector3.Cross(Vector3.up, toCoffin).normalized; // monster's right is -side
         bool right = true;
         Vector3 soil = risePoint - toCoffin * 0.35f + side * -0.25f; // where the hand breaks the surface
+        Vector3 soil2 = risePoint - toCoffin * 0.3f + side * 0.3f;   // ...and where the second one follows it
 
         faceGlow = new GameObject("GraveFaceGlow").AddComponent<Light>();
         faceGlow.type = LightType.Point;
@@ -254,16 +256,20 @@ public class GraveFinale : MonoBehaviour
             float u = ct / clawTime;
             Vector3 hand = soil + Vector3.up * (0.05f + 0.4f * HorrorUI.Smooth(u)) + Twitch(ct, 0.03f);
             grave.SetScareHand(right, hand, hand + Vector3.down * 0.5f + side * -0.3f, 1f);
+            // Halfway through, the other hand tears up beside it and claws at the dirt.
+            float u2 = Mathf.InverseLerp(0.45f, 1f, u);
+            Vector3 hand2 = soil2 + Vector3.up * (0.03f + 0.3f * HorrorUI.Smooth(u2)) + Twitch(ct + 4.7f, 0.035f);
+            grave.SetScareOtherHand(hand2, hand2 + Vector3.down * 0.5f + side * 0.3f, u2 > 0f ? 1f : 0f);
             if (u > 0.5f && fl != null) fl.ForceFlicker(0.1f);
             yield return null;
         }
 
         // 5b. Lurch: the head bursts out, then it drags itself up in jerky, stop-motion steps, reaching for you.
-        Play(riseClip, MakeGroan, 1f);
-        GameAudio.Play2D(GameAudio.CrackBig(), 0.9f);    // the ground splits as its head breaks out
-        GameAudio.Play2D(GameAudio.Creak(), 0.6f);
+        GameAudio.Play2D(GameAudio.Get("Dirt_Burst"), 1f);      // the ground splits as its head breaks out
+        StartCoroutine(PlayAfter(riseClip, 0.25f, 0.9f));         // then the soil pours off it as it hauls itself up
         shake = 0.6f;
         Vector3 reach = camPos + (risePoint - camPos).normalized * 0.5f + Vector3.down * 0.12f + side * -0.12f;
+        Vector3 reach2 = camPos + (risePoint - camPos).normalized * 0.6f + Vector3.down * 0.22f + side * 0.2f;
         float t5 = 0f;
         while (t5 < riseTime)
         {
@@ -281,6 +287,10 @@ public class GraveFinale : MonoBehaviour
             go.transform.position = new Vector3(basePos.x, Mathf.Lerp(startY, endY, p), basePos.z) + Twitch(t5, 0.015f);
             Vector3 hand = Vector3.Lerp(soil + Vector3.up * 0.45f, reach, HorrorUI.Smooth(Mathf.InverseLerp(0.3f, 1f, p))) + Twitch(t5 * 1.3f, 0.025f);
             grave.SetScareHand(right, hand, hand + Vector3.down * 0.4f + side * -0.35f, 1f);
+            // The other hand stays planted in the dirt, hauling the body up, then lets go and reaches for you too.
+            Vector3 planted = soil2 + Vector3.up * 0.06f;
+            Vector3 hand2 = Vector3.Lerp(planted, reach2, HorrorUI.Smooth(Mathf.InverseLerp(0.55f, 1f, p))) + Twitch(t5 * 1.1f + 4.7f, 0.025f);
+            grave.SetScareOtherHand(hand2, hand2 + Vector3.down * 0.4f + side * 0.35f, 1f);
             if (head != null)
             {
                 lookTarget = head.position;
@@ -301,6 +311,7 @@ public class GraveFinale : MonoBehaviour
             st += Time.deltaTime;
             go.transform.position = hold + Twitch(st * 2f, 0.008f);
             grave.SetScareHand(right, reach + Twitch(st * 3f, 0.02f), reach + Vector3.down * 0.4f + side * -0.35f, 1f);
+            grave.SetScareOtherHand(reach2 + Twitch(st * 2.6f + 4.7f, 0.02f), reach2 + Vector3.down * 0.4f + side * 0.35f, 1f);
             if (head != null) lookTarget = head.position;
             yield return null;
         }
@@ -314,6 +325,12 @@ public class GraveFinale : MonoBehaviour
     }
 
     bool driving = true;
+
+    IEnumerator PlayAfter(AudioClip clip, float delay, float volume)
+    {
+        yield return new WaitForSeconds(delay);
+        if (clip != null && oneShots != null) oneShots.PlayOneShot(clip, volume * GameSettings.Fx);
+    }
 
     // A snuffed wick: a dull red ember that fades out.
     IEnumerator Ember(Vector3 at)

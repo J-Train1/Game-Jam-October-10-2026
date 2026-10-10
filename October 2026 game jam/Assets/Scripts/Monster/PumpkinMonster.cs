@@ -296,7 +296,7 @@ public class PumpkinMonster : MonoBehaviour
     IEnumerator ReloadAfter(float seconds)
     {
         yield return new WaitForSeconds(seconds);
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        SceneLoader.Reload();
     }
 
     // ---------------- Senses ----------------

@@ -78,11 +78,6 @@ public class Narrator : MonoBehaviour
                 fullIntroSeen = true;
                 Enqueue("You wake in the corn. It is long past midnight.", "[ W A S D ]  walk        [ MOUSE ]  look", tutorialHold, Hint, false);
                 Enqueue("Your flashlight is all you have.", "[ F ]  or  [ RIGHT MOUSE ]  flashlight on / off", tutorialHold, Hint, false);
-                Enqueue(keys, "find them all - each one opens a lock on the gate", tutorialHold, Hint, false);
-                Enqueue("The gate is the only way out.", "it is somewhere on the edge of the field", tutorialHold, Hint, false);
-                Enqueue("Something hunts these rows.", "it cannot move while your light is on it", tutorialHold, Warn, false);
-                Enqueue("Run if you have to. It will hear you.", "[ SHIFT ]  sprint - running is loud", tutorialHold, Hint, false);
-                Enqueue("You have three hearts.", "lose them all and the field keeps you", tutorialHold, Warn, false);
                 // The send-off: slower, redder, the edges of the screen bleed, and the second line arrives late.
                 queue.Add(new Line
                 {

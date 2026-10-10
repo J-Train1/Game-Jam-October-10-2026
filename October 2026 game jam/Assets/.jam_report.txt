@@ -1,0 +1,219 @@
+== Build scenes
+  x Assets/Scenes/MainMenu.unity
+    Assets/Scenes/SampleScene.unity
+  x Assets/Scenes/Maze.unity
+
+== Assets in the build, by top folder (files, source MB)
+  CemeteryPack                                30     158.4
+  Corn                                        23      12.4
+  Erbeilo3d_StylizeFreeProps                  18      30.4
+  Flooded_Grounds                              8      31.1
+  Materials                                    1       0.0
+  Monster                                      3       0.2
+  pumpkin monster                             22     172.1
+  Resources                                   56       8.1
+  Rust Key                                     7       4.2
+  Scenes                                       2       0.0
+  Settings                                     1       0.0
+
+== Asset list
+  Assets/CemeteryPack/Materials/MaterialCandle.mat
+  Assets/CemeteryPack/Materials/MaterialCrypt.mat
+  Assets/CemeteryPack/Materials/MetalObjects.mat
+  Assets/CemeteryPack/Materials/MeterialColumn.mat
+  Assets/CemeteryPack/Meshes/Candle3.fbx
+  Assets/CemeteryPack/Meshes/ColumnGateColumn.fbx
+  Assets/CemeteryPack/Meshes/CryptMiniCoffin2.fbx
+  Assets/CemeteryPack/Meshes/CryptMiniCross.fbx
+  Assets/CemeteryPack/Meshes/CryptMiniFoundation1.fbx
+  Assets/CemeteryPack/Meshes/Materials/No Name.mat
+  Assets/CemeteryPack/Meshes/MetObj_GatesArch.fbx
+  Assets/CemeteryPack/Prefabs/CandleAndLamp/Candle3.prefab
+  Assets/CemeteryPack/Prefabs/CryptMini/CryptMiniCoffin2.prefab
+  Assets/CemeteryPack/Prefabs/CryptMini/CryptMiniCross.prefab
+  Assets/CemeteryPack/Prefabs/CryptMini/CryptMiniFoundation1.prefab
+  Assets/CemeteryPack/Prefabs/Gate/ColumnGateColumn.prefab
+  Assets/CemeteryPack/Prefabs/Gate/MetObj_GatesArch.prefab
+  Assets/CemeteryPack/Textures/Candle_Diffuse.tga
+  Assets/CemeteryPack/Textures/Candle_Emis.tga
+  Assets/CemeteryPack/Textures/Candle_normals.tga
+  Assets/CemeteryPack/Textures/Column_Diffuse.tga
+  Assets/CemeteryPack/Textures/Column_normals.tga
+  Assets/CemeteryPack/Textures/Column_Roughness.tga
+  Assets/CemeteryPack/Textures/Column_Specular.tga
+  Assets/CemeteryPack/Textures/Crypt_Diffuse.tga
+  Assets/CemeteryPack/Textures/Crypt_normals.tga
+  Assets/CemeteryPack/Textures/Crypt_Roughness.tga
+  Assets/CemeteryPack/Textures/Crypt_Specular.tga
+  Assets/CemeteryPack/Textures/MetObj_Diffuse.tga
+  Assets/CemeteryPack/Textures/MetObj_Normal.tga
+  Assets/Corn/Materials/Corn_Card_Dry.mat
+  Assets/Corn/Materials/Corn_Card_Rot.mat
+  Assets/Corn/Materials/Corn_Opt_Dry.mat
+  Assets/Corn/Materials/Corn_Opt_Rot.mat
+  Assets/Corn/Materials/Corn_Palette_Dry.asset
+  Assets/Corn/Materials/Corn_Palette_Rot.asset
+  Assets/Corn/Meshes/CornStalkOpt_0.asset
+  Assets/Corn/Meshes/CornStalkOpt_1.asset
+  Assets/Corn/Meshes/CornStalkOpt_2.asset
+  Assets/Corn/Meshes/CornStalkOpt_3.asset
+  Assets/Corn/Meshes/CornStalkOpt_4.asset
+  Assets/Corn/Meshes/CornStalkOpt_5.asset
+  Assets/Corn/Meshes/CornStalkOpt_6.asset
+  Assets/Corn/Meshes/CornStalkOpt_7.asset
+  Assets/Corn/Prefabs/CornStalk_0.prefab
+  Assets/Corn/Prefabs/CornStalk_1.prefab
+  Assets/Corn/Prefabs/CornStalk_2.prefab
+  Assets/Corn/Prefabs/CornStalk_3.prefab
+  Assets/Corn/Prefabs/CornStalk_4.prefab
+  Assets/Corn/Prefabs/CornStalk_5.prefab
+  Assets/Corn/Prefabs/CornStalk_6.prefab
+  Assets/Corn/Prefabs/CornStalk_7.prefab
+  Assets/Corn/Textures/CornCard.png
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Material/Iron_Trim.mat
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Material/Lamp_Light.mat
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Material/Wall_Lamp.mat
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Material/Wood_1.001.mat
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Model/Iron_Props.fbx
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Model/Lamps1.fbx
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Prefab/Lantern.prefab
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Prefab/lock.prefab
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Texture/Iron_Trim_BaseMap.png
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Texture/Iron_Trim_Emission.png
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Texture/Iron_Trim_MaskMap.png
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Texture/Iron_Trim_Normal.png
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Texture/Wall_Lamp_._BaseMap.png
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Texture/Wall_Lamp_._MaskMap.png
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Texture/Wall_Lamp_._Normal.png
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Texture/Wood_2_BaseMap.png
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Texture/Wood_2_MaskMap.png
+  Assets/Erbeilo3d_StylizeFreeProps/Content/Stylize_FreeProps/Texture/Wood_2_Normal.png
+  Assets/Flooded_Grounds/Content/Textures/GR_Breakup1_A.tif
+  Assets/Flooded_Grounds/Content/Textures/GR_Dirt1_AS.tif
+  Assets/Flooded_Grounds/Content/Textures/GR_Dirt1_N.tif
+  Assets/Flooded_Grounds/Resources/TreeCreator/TreeCreatorBark.shader
+  Assets/Flooded_Grounds/Resources/TreeCreator/TreeCreatorBarkOptimized.shader
+  Assets/Flooded_Grounds/Resources/TreeCreator/TreeCreatorLeaves.shader
+  Assets/Flooded_Grounds/Resources/TreeCreator/TreeCreatorLeavesOptimized.shader
+  Assets/Flooded_Grounds/Resources/WavingGrass.shader
+  Assets/Materials/Ground_Dirt.mat
+  Assets/Monster/Animations/Pumpkin.controller
+  Assets/Monster/Animations/Pumpkin_CreepyPose.anim
+  Assets/Monster/PumpkinMonster.prefab
+  Assets/pumpkin monster/Base mesh/pumpkin.fbx
+  Assets/pumpkin monster/Material/matBody.mat
+  Assets/pumpkin monster/Material/matCloth.mat
+  Assets/pumpkin monster/Material/matHead.mat
+  Assets/pumpkin monster/Prefab/Mutant Jump Attack.fbx
+  Assets/pumpkin monster/Prefab/Mutant Run.fbx
+  Assets/pumpkin monster/Prefab/Mutant Walking.fbx
+  Assets/pumpkin monster/Prefab/pumpkin 1.prefab
+  Assets/pumpkin monster/Prefab/pumpkin.fbx
+  Assets/pumpkin monster/Textures/low_matBody_AlbedoTransparency.png
+  Assets/pumpkin monster/Textures/low_matBody_Emission.png
+  Assets/pumpkin monster/Textures/low_matBody_MetallicSmoothness.png
+  Assets/pumpkin monster/Textures/low_matBody_Normal.png
+  Assets/pumpkin monster/Textures/low_matCloth_AlbedoTransparency.png
+  Assets/pumpkin monster/Textures/low_matCloth_MetallicSmoothness.png
+  Assets/pumpkin monster/Textures/low_matCloth_Normal.png
+  Assets/pumpkin monster/Textures/low_matHead_AlbedoTransparency.png
+  Assets/pumpkin monster/Textures/low_matHead_MetallicSmoothness.png
+  Assets/pumpkin monster/Textures/low_matHead_Normal.png
+  Assets/pumpkin monster/Textures/matBody_Mixed_AO.png
+  Assets/pumpkin monster/Textures/matCloth_Mixed_AO.png
+  Assets/pumpkin monster/Textures/matHead_Mixed_AO.png
+  Assets/Resources/Audio/Ambience_Drone.ogg
+  Assets/Resources/Audio/Ambience_Wind.ogg
+  Assets/Resources/Audio/Claw.wav
+  Assets/Resources/Audio/Crack_Big_1.wav
+  Assets/Resources/Audio/Crack_Big_2.wav
+  Assets/Resources/Audio/Crack_Big_3.wav
+  Assets/Resources/Audio/Crack_Small_1.wav
+  Assets/Resources/Audio/Crack_Small_2.wav
+  Assets/Resources/Audio/Creak_1.wav
+  Assets/Resources/Audio/Creak_2.wav
+  Assets/Resources/Audio/Creak_3.wav
+  Assets/Resources/Audio/Dirt_Burst.wav
+  Assets/Resources/Audio/Dirt_Drag.wav
+  Assets/Resources/Audio/Far_Cry.ogg
+  Assets/Resources/Audio/Flashlight_Dead.wav
+  Assets/Resources/Audio/Flashlight_Off.wav
+  Assets/Resources/Audio/Flashlight_On.wav
+  Assets/Resources/Audio/Game_Over.ogg
+  Assets/Resources/Audio/Gasp.wav
+  Assets/Resources/Audio/Gate_Open.wav
+  Assets/Resources/Audio/Impact_Low.ogg
+  Assets/Resources/Audio/Key_Bell.ogg
+  Assets/Resources/Audio/Music_Menu.ogg
+  Assets/Resources/Audio/Pant.wav
+  Assets/Resources/Audio/Rumble_Loop.ogg
+  Assets/Resources/Audio/Step_1.wav
+  Assets/Resources/Audio/Step_10.wav
+  Assets/Resources/Audio/Step_2.wav
+  Assets/Resources/Audio/Step_3.wav
+  Assets/Resources/Audio/Step_4.wav
+  Assets/Resources/Audio/Step_5.wav
+  Assets/Resources/Audio/Step_6.wav
+  Assets/Resources/Audio/Step_7.wav
+  Assets/Resources/Audio/Step_8.wav
+  Assets/Resources/Audio/Step_9.wav
+  Assets/Resources/Audio/Twig_1.wav
+  Assets/Resources/Audio/Twig_2.wav
+  Assets/Resources/Audio/Twig_3.wav
+  Assets/Resources/Audio/Twig_4.wav
+  Assets/Resources/Audio/Twig_5.wav
+  Assets/Resources/Audio/Twig_6.wav
+  Assets/Resources/Audio/Twig_7.wav
+  Assets/Resources/Audio/Win_Choir.ogg
+  Assets/Resources/BillingMode.json
+  Assets/Resources/Fonts/Creepster.ttf
+  Assets/Resources/Fonts/FellEnglishSC.ttf
+  Assets/Resources/Fonts/Nosifer.ttf
+  Assets/Resources/Fonts/SpecialElite.ttf
+  Assets/Resources/HowToPlay/Shot_Dark.jpg
+  Assets/Resources/HowToPlay/Shot_Freeze.jpg
+  Assets/Resources/HowToPlay/Shot_Gate.jpg
+  Assets/Resources/HowToPlay/Shot_Hunt.jpg
+  Assets/Resources/HowToPlay/Shot_Key.jpg
+  Assets/Resources/HowToPlay/Shot_Maze.jpg
+  Assets/Resources/Logo/DollHeadLogo.png
+  Assets/Resources/Shaders/JamMoon.shader
+  Assets/Rust Key/Materials/rust_key_autodesk.mat
+  Assets/Rust Key/Mesh/rust_key.FBX
+  Assets/Rust Key/Prefabs/rust_key.prefab
+  Assets/Rust Key/Textures/rust_key_Albedo.png
+  Assets/Rust Key/Textures/rust_key_Metalness.png
+  Assets/Rust Key/Textures/rust_key_Normal.png
+  Assets/Rust Key/Textures/rust_key_Roughness.png
+  Assets/Scenes/MainMenu.unity
+  Assets/Scenes/Maze.unity
+  Assets/Settings/Jam_NightVolume.asset
+
+== Player Settings
+  target            StandaloneWindows64
+  companyName       Doll Head Games LLC
+  productName       Creepers in the Corn
+  bundleVersion     1.0
+  colorSpace        Linear
+  fullScreenMode    FullScreenWindow
+  defaultScreen     1920x1080
+  resizableWindow   True
+  runInBackground   False
+  visibleInBg       True
+  usePlayerLog      True
+  resolutionDialog  (removed in Unity 6)
+  splash            show=False logo=True style=LightOnDark bg=RGBA(0.000, 0.000, 0.000, 1.000)
+  icons(standalone) 
+  defaultIcon       Assets/Icon/GameIcon.png
+  cursor            -
+  scriptingBackend  Mono2x
+  apiCompat         NET_Standard_2_0
+  il2cppConfig      Release
+  stripping         Disabled
+  defines           
+  activeInput       New Input System
+  gfxAPIs(win)      Direct3D12, Direct3D11 auto=True
+  vsync(quality)    0  level=PC  levels=Mobile/PC
+  development       False
+  standaloneSubtarget Player
+  installedModules  win=True webgl=False mac=False

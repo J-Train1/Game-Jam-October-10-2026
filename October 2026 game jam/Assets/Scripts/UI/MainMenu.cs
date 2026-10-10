@@ -35,14 +35,17 @@ public class MainMenu : MonoBehaviour
     public Vector3 moonPosition = new Vector3(10.5f, 6.8f, 22f);
     public float moonSize = 6f;
 
-    enum Item { Play, Settings, Quit }
-    static readonly string[] Labels = { "PLAY", "SETTINGS", "QUIT GAME" };
+    enum Item { Play, HowTo, Settings, Credits, Quit }
+    static readonly string[] Labels = { "PLAY", "HOW TO PLAY", "SETTINGS", "CREDITS", "QUIT GAME" };
 
     Camera cam;
     Quaternion camBaseRot;
     int selected = -1, lastHover = -1;
-    bool settingsOpen, leaving;
+    bool settingsOpen, howToOpen, creditsOpen, leaving;
     SettingsPanel panel;
+    HowToPlayPanel howTo;
+    CreditsPanel credits;
+    float howToAt, creditsAt;
     float start, leaveStart;
     Item leaveAction;
     AudioSource sfx, amb, windSrc;
@@ -87,6 +90,8 @@ public class MainMenu : MonoBehaviour
             OnBack = () => settingsOpen = false,
             OnCalibrationDone = () => { leaving = true; leaveAction = Item.Play; leaveStart = Time.unscaledTime; }, // first PLAY: brightness, then the game
         };
+        howTo = new HowToPlayPanel(sfx) { OnBack = () => howToOpen = false };
+        credits = new CreditsPanel(sfx) { OnBack = () => creditsOpen = false };
         nextLook = Time.time + Random.Range(5f, 8f);
     }
 
@@ -371,21 +376,29 @@ public class MainMenu : MonoBehaviour
         var kb = Keyboard.current;
         if (!leaving && kb != null)
         {
-            if (settingsOpen || panel.Calibrating)
+            if (howToOpen)
+            {
+                howTo.Update();
+            }
+            else if (creditsOpen)
+            {
+                credits.Update();
+            }
+            else if (settingsOpen || panel.Calibrating)
             {
                 panel.Update();
             }
             else
             {
-                if (kb.downArrowKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame) { selected = (selected + 1 + 3) % 3; Hover(); }
-                if (kb.upArrowKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame) { selected = (selected - 1 + 3) % 3; if (selected < 0) selected = 2; Hover(); }
+                if (kb.downArrowKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame) { selected = (selected + 1) % Labels.Length; Hover(); }
+                if (kb.upArrowKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame) { selected = (selected - 1 + Labels.Length) % Labels.Length; Hover(); }
                 if ((kb.enterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame) && selected >= 0) Activate((Item)selected);
             }
         }
 
         if (leaving && Time.unscaledTime - leaveStart > 1.3f)
         {
-            if (leaveAction == Item.Play) SceneManager.LoadScene(gameScene);
+            if (leaveAction == Item.Play) SceneLoader.Load(gameScene);
             else
             {
 #if UNITY_EDITOR
@@ -394,7 +407,7 @@ public class MainMenu : MonoBehaviour
                 Application.Quit();
 #endif
             }
-            leaving = false;
+            if (leaveAction != Item.Play) leaving = false; // PLAY: stay "leaving" (and black) while the maze loads
         }
     }
 
@@ -407,7 +420,7 @@ public class MainMenu : MonoBehaviour
         rig.rotation = Quaternion.LookRotation(toCam.normalized) * Quaternion.Euler(Mathf.Sin(t * 0.5f) * 0.6f, Mathf.Sin(t * 0.37f) * 1.2f, Mathf.Sin(t * 0.61f) * 0.9f);
 
         // Now and then -- and whenever you hover QUIT -- the head slowly comes up to look at you.
-        bool quitHover = !settingsOpen && selected == (int)Item.Quit;
+        bool quitHover = !settingsOpen && !howToOpen && !creditsOpen && selected == (int)Item.Quit;
         if (t >= nextLook) { lookUntil = t + Random.Range(1.6f, 2.6f); nextLook = t + Random.Range(9f, 15f); }
         bool looking = quitHover || t < lookUntil;
         lookW = Mathf.MoveTowards(lookW, looking ? 1f : 0f, Time.deltaTime * (looking ? 0.7f : 0.45f));
@@ -446,6 +459,8 @@ public class MainMenu : MonoBehaviour
                 if (!GameSettings.BrightnessSet) panel.StartCalibration(); // first time: set brightness before going in
                 else { leaving = true; leaveAction = Item.Play; leaveStart = Time.unscaledTime; }
                 break;
+            case Item.HowTo: howToOpen = true; howToAt = Time.unscaledTime; howTo.Open(); break;
+            case Item.Credits: creditsOpen = true; creditsAt = Time.unscaledTime; credits.Open(); break;
             case Item.Settings: settingsOpen = true; panel.ResetSelection(); break;
             case Item.Quit: leaving = true; leaveAction = Item.Quit; leaveStart = Time.unscaledTime; break;
         }
@@ -482,7 +497,7 @@ public class MainMenu : MonoBehaviour
             panelText = HorrorUI.Style(HorrorUI.TypeFont);
         }
 
-        bool panelUp = settingsOpen || panel.Calibrating;
+        bool panelUp = settingsOpen || howToOpen || creditsOpen || panel.Calibrating;
         if (paint && !panelUp) DrawTitle(sw, sh, k, t);
 
         // ---- Buttons ----
@@ -490,7 +505,7 @@ public class MainMenu : MonoBehaviour
         if (!panelUp)
         {
             itemStyle.fontSize = HorrorUI.Px(54);
-            float by = 560f * k, gap = 86f * k;
+            float by = 560f * k, gap = 80f * k;
             Vector2 mouse = Event.current.mousePosition;
             int hover = -1;
             for (int i = 0; i < Labels.Length; i++)
@@ -520,6 +535,14 @@ public class MainMenu : MonoBehaviour
                 Activate((Item)hover);
                 Event.current.Use();
             }
+        }
+        else if (howToOpen)
+        {
+            howTo.OnGUI(Mathf.Clamp01((Time.unscaledTime - howToAt) / 0.35f));
+        }
+        else if (creditsOpen)
+        {
+            credits.OnGUI(Mathf.Clamp01((Time.unscaledTime - creditsAt) / 0.35f));
         }
         else
         {

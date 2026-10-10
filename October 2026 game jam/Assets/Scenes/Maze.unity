@@ -163,6 +163,9 @@ MonoBehaviour:
   bobFrequencyWalk: 1.8
   bobFrequencySprint: 2.6
   bobAmplitude: 0.04
+  walkStepVolume: 0.13
+  sprintStepVolume: 0.42
+  breathVolume: 0.6
   walkNoiseRadius: 0
   sprintNoiseRadius: 14
 --- !u!143 &78568992
@@ -542,11 +545,6 @@ MonoBehaviour:
   contrast: 24
   saturation: -42
   chromaticAberration: 0.22
-  overlay: 0
-  filmFps: 12
-  dustAmount: 0.5
-  scratchAmount: 0.55
-  flicker: 0.06
 --- !u!1 &786662171
 GameObject:
   m_ObjectHideFlags: 0
