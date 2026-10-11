@@ -216,7 +216,7 @@ public class HowToPlayPanel
         {
             var old = GUI.color;
             GUI.color = new Color(1f, 1f, 1f, pa);
-            GUI.DrawTexture(img, tex, ScaleMode.ScaleAndCrop, false);
+            GUI.DrawTexture(img, HorrorUI.Tex(tex), ScaleMode.ScaleAndCrop, false);
             GUI.color = old;
         }
         else

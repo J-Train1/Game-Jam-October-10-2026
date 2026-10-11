@@ -300,8 +300,8 @@ public class DeathScreen : MonoBehaviour
     {
         if (tex == null || c.a <= 0.001f) return;
         var old = GUI.color;
-        GUI.color = c;
-        GUI.DrawTexture(r, tex, ScaleMode.StretchToFill, true);
+        GUI.color = HorrorUI.Out(c);
+        GUI.DrawTexture(r, HorrorUI.Tex(tex), ScaleMode.StretchToFill, true);
         GUI.color = old;
     }
 

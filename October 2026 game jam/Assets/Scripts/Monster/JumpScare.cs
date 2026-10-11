@@ -916,8 +916,8 @@ public class JumpScare : MonoBehaviour
             if (jawTex == null) jawTex = MakeJaw(jawFlesh, jawGlow);
             float sw = Screen.width, sh = Screen.height, jh = sh * 0.6f, travel = sh * 0.56f * jaw;
             GUI.color = Color.white;
-            GUI.DrawTextureWithTexCoords(new Rect(0, sh - travel, sw, jh), jawTex, new Rect(0f, 0f, 1f, 1f));                  // bottom jaw, teeth up
-            GUI.DrawTextureWithTexCoords(new Rect(0, travel - jh, sw, jh), jawTex, new Rect(0.5f / 7f, 1f, 1f, -1f));          // top jaw, teeth down, offset
+            GUI.DrawTextureWithTexCoords(new Rect(0, sh - travel, sw, jh), HorrorUI.Tex(jawTex), new Rect(0f, 0f, 1f, 1f));                  // bottom jaw, teeth up
+            GUI.DrawTextureWithTexCoords(new Rect(0, travel - jh, sw, jh), HorrorUI.Tex(jawTex), new Rect(0.5f / 7f, 1f, 1f, -1f));          // top jaw, teeth down, offset
         }
         if (flashAlpha > 0.001f) Draw(full, Texture2D.whiteTexture, new Color(1f, 1f, 1f, flashAlpha * FlashMul));
         if (blackAlpha > 0.001f) Draw(full, Texture2D.whiteTexture, new Color(0f, 0f, 0f, blackAlpha));
@@ -958,8 +958,8 @@ public class JumpScare : MonoBehaviour
 
     static void Draw(Rect r, Texture tex, Color c)
     {
-        GUI.color = c;
-        GUI.DrawTexture(r, tex, ScaleMode.StretchToFill);
+        GUI.color = HorrorUI.Out(c);
+        GUI.DrawTexture(r, tex, ScaleMode.StretchToFill); // (the static noise changes every frame; grey, so left as is)
     }
 
     void OnDestroy()

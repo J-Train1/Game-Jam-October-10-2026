@@ -50,6 +50,8 @@ public class PlayerController : MonoBehaviour
     /// <summary>True after running stamina dry, until enough has recovered to sprint again.</summary>
     public bool IsExhausted => exhausted;
     public float NoiseRadius => IsSprinting ? sprintNoiseRadius : IsMoving ? walkNoiseRadius : 0f;
+    /// <summary>How far a sprint carries (keys and the gate are just as loud).</summary>
+    public float SprintNoiseRadius => sprintNoiseRadius;
     public bool InputEnabled { get; set; } = true;
     public Transform CameraRoot => cameraRoot;
 

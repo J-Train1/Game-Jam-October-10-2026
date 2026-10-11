@@ -10,6 +10,10 @@ using UnityEngine.SceneManagement;
 // Unlit, it hurries after you a little faster than you walk; sprinting gets you away. Touching you catches you,
 // which hands the monster to JumpScare (one of three random scares), then DeathScreen (lose a heart / game over).
 // Moves along the maze tile grid (MazeGrid paths): no NavMesh, no collider needed.
+// A little cunning:
+//  - Picking up a key or reaching the gate makes as much noise as sprinting: pumpkins within earshot come to look.
+//  - When two or more hunt you at once, the closest one chases while the others take a different route and try
+//    to cut you off ahead of where you're running (like the ghosts in Pac-Man). Close enough, they all just chase.
 public class PumpkinMonster : MonoBehaviour
 {
     public enum State { Wander, Hunt, Search }
@@ -52,6 +56,16 @@ public class PumpkinMonster : MonoBehaviour
     [Range(0f, 1f)] public float frozenBodyLook = 0.35f;
     [Range(0f, 1f)] public float frozenLookClamp = 0.25f;
 
+    [Header("Pack hunting")]
+    [Tooltip("Noise radius of picking up a key / reaching the gate (0 = same as the player's sprint).")]
+    public float objectiveNoiseRadius = 0f;
+    [Tooltip("Flankers stop circling around and chase straight in when this many tiles (on foot) from the player.")]
+    public int flankChaseTiles = 3;
+    [Tooltip("How far ahead of the player (tiles on foot) a flanker tries to cut them off.")]
+    public Vector2Int flankAhead = new Vector2Int(2, 8);
+    [Tooltip("Seconds between flank route updates.")]
+    public float flankReplan = 1f;
+
     [Header("Catch")]
     public float catchDistance = 1.1f;
     [Tooltip("Only used if the jump scare can't run (no camera): reload after this many seconds.")]
@@ -90,8 +104,22 @@ public class PumpkinMonster : MonoBehaviour
     Vector3 otherHandPos, otherHandHint;
     float otherHandWeight;
 
+    // Pack hunting
+    bool hooked;
+    KeyManager hookedKeys;
+    ExitGate hookedGate;
+    float flankTimer;
+    bool flanking;
+    /// <summary>True while this monster is circling round to cut the player off (for debugging).</summary>
+    public bool IsFlanking => flanking && CurrentState == State.Hunt;
+
     void OnEnable() { if (!All.Contains(this)) All.Add(this); }
-    void OnDestroy() => All.Remove(this);
+    void OnDestroy()
+    {
+        All.Remove(this);
+        if (hookedKeys != null) hookedKeys.OnKeyCollected -= OnKeyNoise;
+        if (hookedGate != null) { hookedGate.OnLockRemoved -= OnGateNoise; hookedGate.OnRattled -= OnGateRattle; }
+    }
 
     void Awake()
     {
@@ -125,6 +153,7 @@ public class PumpkinMonster : MonoBehaviour
     {
         if (PlayerIsCaught || grid == null) return;
         float dt = Time.deltaTime;
+        if (!hooked) HookNoises();
 
         bool lit = IsLit();
         bool sensed = lit || Sense();
@@ -161,6 +190,7 @@ public class PumpkinMonster : MonoBehaviour
     {
         CurrentState = s;
         path = null;
+        flanking = false;
         IsFrozen = false;
         switch (s)
         {
@@ -183,6 +213,7 @@ public class PumpkinMonster : MonoBehaviour
 
     void Hunt(float dt, bool sensed)
     {
+        if (Flank(dt)) { TryCatch(); return; }
         var here = CurrentTile();
         var goal = grid.WorldToTile(lastKnownPos);
         if (!grid.IsOpen(goal) || here == goal)
@@ -297,6 +328,167 @@ public class PumpkinMonster : MonoBehaviour
     {
         yield return new WaitForSeconds(seconds);
         SceneLoader.Reload();
+    }
+
+    // ---------------- Noise: keys and the gate ----------------
+
+    void HookNoises()
+    {
+        if (hookedKeys == null && KeyManager.Instance != null) { hookedKeys = KeyManager.Instance; hookedKeys.OnKeyCollected += OnKeyNoise; }
+        if (hookedGate == null && ExitGate.Instance != null)
+        {
+            hookedGate = ExitGate.Instance;
+            hookedGate.OnLockRemoved += OnGateNoise;
+            hookedGate.OnRattled += OnGateRattle;
+        }
+        hooked = hookedKeys != null && hookedGate != null;
+    }
+
+    void OnKeyNoise(int collected, int total) { if (collected > 0) HearNoiseAtPlayer(); }
+    void OnGateNoise(int removed, int total) => HearNoiseAtPlayer();
+    void OnGateRattle(int locksLeft) => HearNoiseAtPlayer();
+
+    // The same rule as hearing the player sprint: within the radius (straight line), it knows where you are.
+    void HearNoiseAtPlayer()
+    {
+        if (!enabled || ScareMode || PlayerIsCaught || player == null || grid == null) return;
+        var pc = PlayerController.Instance;
+        float r = objectiveNoiseRadius > 0f ? objectiveNoiseRadius : (pc != null ? pc.SprintNoiseRadius : 14f);
+        Vector3 to = player.position - transform.position; to.y = 0f;
+        if (to.magnitude > r) return;
+        lastSenseTime = Time.time;
+        lastKnownPos = player.position;
+        if (logStates) Debug.Log($"[Pumpkin] {name} heard a key / the gate");
+        if (CurrentState != State.Hunt) SetState(State.Hunt);
+    }
+
+    // ---------------- Pack hunting: cut the player off ----------------
+
+    static int fieldFrame = -1;
+    static Vector2Int fieldTile;
+    static int[,] playerField;
+
+    /// <summary>Distance (tiles on foot) from the player's tile to every tile; worked out once per frame.</summary>
+    int[,] PlayerField()
+    {
+        var pt = grid.WorldToTile(player.position);
+        if (fieldFrame != Time.frameCount || pt != fieldTile || playerField == null)
+        {
+            fieldFrame = Time.frameCount;
+            fieldTile = pt;
+            playerField = grid.IsOpen(pt) ? grid.DistanceField(pt) : null;
+        }
+        return playerField;
+    }
+
+    // Returns true if this monster is flanking this frame (and has moved); false = chase normally.
+    bool Flank(float dt)
+    {
+        var dP = PlayerField();
+        if (dP == null) { flanking = false; return false; }
+        var here = CurrentTile();
+        int myD = dP[here.x, here.y];
+
+        // Who's closest to the player among the hunters? That one chases; the rest go around.
+        PumpkinMonster leader = null;
+        int best = int.MaxValue;
+        foreach (var m in All)
+        {
+            if (m == null || !m.isActiveAndEnabled || m.ScareMode || m.CurrentState != State.Hunt || m.grid == null) continue;
+            var t = m.CurrentTile();
+            int d = dP[t.x, t.y];
+            if (d < 0) continue;
+            if (d < best || (d == best && m.GetInstanceID() < (leader != null ? leader.GetInstanceID() : int.MaxValue))) { best = d; leader = m; }
+        }
+        if (leader == null || leader == this || myD < 0 || myD <= flankChaseTiles) { if (flanking) path = null; flanking = false; return false; }
+
+        // The pack shares what it knows: the leader's sighting keeps the flanker on the hunt.
+        if (leader.lastSenseTime > lastSenseTime) { lastSenseTime = leader.lastSenseTime; lastKnownPos = leader.lastKnownPos; }
+
+        flankTimer -= dt;
+        if (!flanking || path == null || flankTimer <= 0f)
+        {
+            flankTimer = flankReplan;
+            var target = FlankTarget(leader, dP);
+            if (target == null) { if (flanking) path = null; flanking = false; return false; } // cornered: just come straight in
+            path = FindPathAvoiding(here, target.Value, leader);
+            pathIndex = (path != null && path.Count > 1) ? 1 : 0;
+            if (path == null) { flanking = false; return false; }
+            if (!flanking && logStates) Debug.Log($"[Pumpkin] {name} flanking toward {target.Value} (leader {leader.name})");
+            flanking = true;
+        }
+        if (FollowPath(huntSpeed, dt))
+        {
+            // At the cut-off point: lie in wait facing the way you'd come, and re-think shortly.
+            flankTimer = Mathf.Min(flankTimer, 0.4f);
+            Vector3 to = player.position - transform.position; to.y = 0f;
+            if (to.sqrMagnitude > 0.01f)
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(to), turnSpeed * 0.5f * dt);
+        }
+        return true;
+    }
+
+    // A tile a few steps ahead of the player, on the far side from the leader (where they'd run to),
+    // that this monster can reach about as soon as the player can.
+    Vector2Int? FlankTarget(PumpkinMonster leader, int[,] dP)
+    {
+        var pt = grid.WorldToTile(player.position);
+        var dA = grid.DistanceField(leader.CurrentTile());
+        var dB = grid.DistanceField(CurrentTile());
+        int aP = dA[pt.x, pt.y];
+        if (aP < 0) return null;
+        Vector2Int? bestT = null;
+        float bestScore = float.MaxValue;
+        for (int x = 0; x < grid.width; x++)
+        for (int y = 0; y < grid.height; y++)
+        {
+            int p = dP[x, y], a = dA[x, y], b = dB[x, y];
+            if (p < flankAhead.x || p > flankAhead.y || a < 0 || b < 0) continue;
+            if (a <= aP) continue;                     // on the leader's side of the player: no use
+            float score = (b - p) + 0.35f * Mathf.Abs(p - 4);
+            if (grid.OpenNeighborCount(new Vector2Int(x, y)) >= 3) score -= 1.5f; // a crossing: cut it and they're boxed in
+            if (score < bestScore) { bestScore = score; bestT = new Vector2Int(x, y); }
+        }
+        return bestT;
+    }
+
+    // Shortest route that stays off the leader's path where it can (cost 1 per tile, 5 on the leader's route).
+    List<Vector2Int> FindPathAvoiding(Vector2Int from, Vector2Int to, PumpkinMonster leader)
+    {
+        if (!grid.IsOpen(from) || !grid.IsOpen(to)) return null;
+        var avoid = new HashSet<Vector2Int>();
+        if (leader.path != null)
+            for (int i = Mathf.Max(0, leader.pathIndex - 1); i < leader.path.Count; i++) avoid.Add(leader.path[i]);
+        avoid.Add(leader.CurrentTile());
+        avoid.Remove(from);
+
+        var cost = new Dictionary<Vector2Int, int> { [from] = 0 };
+        var prev = new Dictionary<Vector2Int, Vector2Int> { [from] = from };
+        var open = new List<Vector2Int> { from };
+        while (open.Count > 0)
+        {
+            int bi = 0;
+            for (int i = 1; i < open.Count; i++) if (cost[open[i]] < cost[open[bi]]) bi = i;
+            var c = open[bi];
+            open.RemoveAt(bi);
+            if (c == to) break;
+            foreach (var n in grid.OpenNeighbors(c))
+            {
+                int nc = cost[c] + (avoid.Contains(n) ? 5 : 1);
+                if (!cost.TryGetValue(n, out int old) || nc < old)
+                {
+                    if (!cost.ContainsKey(n)) open.Add(n);
+                    cost[n] = nc;
+                    prev[n] = c;
+                }
+            }
+        }
+        if (!prev.ContainsKey(to)) return null;
+        var route = new List<Vector2Int>();
+        for (var c = to; c != from; c = prev[c]) route.Add(c);
+        route.Add(from);
+        route.Reverse();
+        return route;
     }
 
     // ---------------- Senses ----------------

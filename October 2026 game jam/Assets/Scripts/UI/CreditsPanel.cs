@@ -140,7 +140,7 @@ public class CreditsPanel
             HorrorUI.Glow(R(x2 - 40f, y2 - 30f, lw + 80f, lh + 60f), HorrorUI.A(HorrorUI.Ember, 0.22f * la * flick));
             var old = GUI.color;
             GUI.color = new Color(1f, 1f, 1f, la * flick);
-            GUI.DrawTexture(R(x2, y2, lw, lh), logo, ScaleMode.ScaleToFit, true);
+            GUI.DrawTexture(R(x2, y2, lw, lh), HorrorUI.Tex(logo), ScaleMode.ScaleToFit, true);
             GUI.color = old;
             tx = x2 + lw + 34f;
         }

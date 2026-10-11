@@ -22,6 +22,88 @@ public static class HorrorUI
 
     public static Color A(Color c, float a) { c.a = a; return c; }
 
+    // ---------------- Build colour fix ----------------
+    // In some builds (linear colour space, Windows) everything drawn with OnGUI / screen-space UI comes out
+    // darker and redder than in the editor: the colours are written to the screen without the final sRGB step,
+    // so orange turns red and bone text turns khaki. At startup a tiny probe draws a 50% grey dot for a couple
+    // of frames, reads the screen back and, if it came out dark, pre-corrects every UI colour and image so the
+    // build looks exactly like the editor. In the editor (and on machines without the problem) nothing changes.
+    public static bool NeedsGammaFix { get; private set; }
+
+    /// <summary>The colour to hand to GUI.color / textColor so it shows on screen as c.</summary>
+    public static Color Out(Color c) => !NeedsGammaFix ? c
+        : new Color(Mathf.LinearToGammaSpace(c.r), Mathf.LinearToGammaSpace(c.g), Mathf.LinearToGammaSpace(c.b), c.a);
+
+    static readonly System.Collections.Generic.Dictionary<Texture, Texture> fixedTex = new System.Collections.Generic.Dictionary<Texture, Texture>();
+
+    /// <summary>The texture to draw with GUI.DrawTexture so it shows on screen like it does in the editor.</summary>
+    public static Texture Tex(Texture t)
+    {
+        if (!NeedsGammaFix || !(t is Texture2D src) || src.isDataSRGB == false) return t;
+        if (fixedTex.TryGetValue(t, out var f)) return f != null ? f : t;
+        Texture2D copy = null;
+        try
+        {
+            // Same pixels, read as plain numbers instead of sRGB: drawn to the uncorrected screen they come out right.
+            copy = new Texture2D(src.width, src.height, src.format, src.mipmapCount, true)
+                   { wrapMode = src.wrapMode, filterMode = src.filterMode, hideFlags = HideFlags.HideAndDontSave };
+            if (SystemInfo.copyTextureSupport != UnityEngine.Rendering.CopyTextureSupport.None) Graphics.CopyTexture(src, copy);
+            else if (src.isReadable) { copy.LoadRawTextureData(src.GetRawTextureData()); copy.Apply(false); }
+            else { Object.Destroy(copy); copy = null; }
+        }
+        catch (System.Exception ex) { Debug.LogWarning("[UI] texture fix failed for " + t.name + ": " + ex.Message); if (copy != null) Object.Destroy(copy); copy = null; }
+        fixedTex[t] = copy;
+        return copy != null ? copy : t;
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void StartProbe()
+    {
+        if (Application.isEditor || QualitySettings.activeColorSpace != ColorSpace.Linear) return;
+        var go = new GameObject("UIColourProbe");
+        Object.DontDestroyOnLoad(go);
+        go.AddComponent<ColourProbe>();
+    }
+
+    class ColourProbe : MonoBehaviour
+    {
+        bool probing = true;
+        float nextScan;
+
+        System.Collections.IEnumerator Start()
+        {
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            var shot = ScreenCapture.CaptureScreenshotAsTexture();
+            float v = shot.GetPixel(3, shot.height - 4).r;
+            Destroy(shot);
+            probing = false;
+            NeedsGammaFix = v < 0.36f;   // 0.5 grey reads back ~0.5 when fine, ~0.2 when the screen skips the sRGB step
+            Debug.Log($"[UI] colour probe read {v:0.00} -> {(NeedsGammaFix ? "correcting UI colours" : "no correction needed")}");
+            if (!NeedsGammaFix) Destroy(gameObject);
+        }
+
+        void OnGUI()
+        {
+            if (!probing) return;
+            GUI.depth = -300000;
+            if (Event.current.type != EventType.Repaint) return;
+            var old = GUI.color;
+            GUI.color = new Color(0.5f, 0.5f, 0.5f, 1f);
+            GUI.DrawTexture(new Rect(0, 0, 8, 8), Texture2D.whiteTexture);
+            GUI.color = old;
+        }
+
+        // Screen-space canvases (the HUD): keep their vertex colours as authored, which is what this screen needs.
+        void Update()
+        {
+            if (!NeedsGammaFix || Time.unscaledTime < nextScan) return;
+            nextScan = Time.unscaledTime + 0.5f;
+            foreach (var c in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+                if (c.isRootCanvas && c.renderMode != RenderMode.WorldSpace && !c.vertexColorAlwaysGammaSpace) c.vertexColorAlwaysGammaSpace = true;
+        }
+    }
+
     // ---------------- Fonts ----------------
     static Font title, drip, serif, type, fallback;
     public static Font TitleFont => Get(ref title, "Fonts/Creepster");
@@ -69,12 +151,12 @@ public static class HorrorUI
         }
         if (chroma > 0f)
         {
-            st.normal.textColor = new Color(1f, 0.08f, 0.05f, c.a * 0.38f);
+            st.normal.textColor = Out(new Color(1f, 0.08f, 0.05f, c.a * 0.38f));
             GUI.Label(new Rect(r.x - chroma, r.y, r.width, r.height), s, st);
-            st.normal.textColor = new Color(0.1f, 0.75f, 1f, c.a * 0.22f);
+            st.normal.textColor = Out(new Color(0.1f, 0.75f, 1f, c.a * 0.22f));
             GUI.Label(new Rect(r.x + chroma, r.y + chroma * 0.3f, r.width, r.height), s, st);
         }
-        st.normal.textColor = c;
+        st.normal.textColor = Out(c);
         GUI.Label(r, s, st);
     }
 
@@ -172,7 +254,7 @@ public static class HorrorUI
             vignette.Apply(false, false);
         }
         var old = GUI.color;
-        GUI.color = new Color(tint.r, tint.g, tint.b, alpha);
+        GUI.color = Out(new Color(tint.r, tint.g, tint.b, alpha));
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), vignette, ScaleMode.StretchToFill, true);
         GUI.color = old;
     }
@@ -182,7 +264,7 @@ public static class HorrorUI
     {
         if (c.a <= 0.002f) return;
         var old = GUI.color;
-        GUI.color = c;
+        GUI.color = Out(c);
         GUI.DrawTexture(r, BlobTexture, ScaleMode.StretchToFill, true);
         GUI.color = old;
     }
@@ -228,7 +310,7 @@ public static class HorrorUI
     {
         if (c.a <= 0.002f) return;
         var old = GUI.color;
-        GUI.color = c;
+        GUI.color = Out(c);
         GUI.DrawTexture(r, Texture2D.whiteTexture);
         GUI.color = old;
     }

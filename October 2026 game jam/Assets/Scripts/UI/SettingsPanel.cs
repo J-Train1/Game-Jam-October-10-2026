@@ -239,8 +239,8 @@ public class SettingsPanel
         var rp = new Rect(sw * 0.5f + 90f * k, sh * 0.36f, size, size);
         float g1 = 0.085f * gain, g2 = 0.035f * gain;
         var old = GUI.color;
-        GUI.color = new Color(g1 * 1.15f, g1 * 0.8f, g1 * 0.55f, alpha); GUI.DrawTexture(lp, pumpkinTex, ScaleMode.StretchToFill, true);
-        GUI.color = new Color(g2 * 1.15f, g2 * 0.8f, g2 * 0.55f, alpha); GUI.DrawTexture(rp, pumpkinTex, ScaleMode.StretchToFill, true);
+        GUI.color = HorrorUI.Out(new Color(g1 * 1.15f, g1 * 0.8f, g1 * 0.55f, alpha)); GUI.DrawTexture(lp, pumpkinTex, ScaleMode.StretchToFill, true);
+        GUI.color = HorrorUI.Out(new Color(g2 * 1.15f, g2 * 0.8f, g2 * 0.55f, alpha)); GUI.DrawTexture(rp, pumpkinTex, ScaleMode.StretchToFill, true);
         GUI.color = old;
 
         float v = (GameSettings.Brightness + 1f) * 0.5f;
