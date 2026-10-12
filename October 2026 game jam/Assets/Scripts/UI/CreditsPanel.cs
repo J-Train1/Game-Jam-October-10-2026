@@ -10,7 +10,7 @@ public class CreditsPanel
     public const string GameTitle = "CREEPERS IN THE CORN";
     public const string Company = "Doll Head Games LLC";
     public const string MadeBy = "James Maher";
-    public const string MadeFor = "made for the October 2026 Game Jam";
+    public const string MadeFor = "made for the October 2026 GLCS Game Jam (Halloween Theme)";
 
     public struct Entry { public string what, who; public Entry(string what, string who) { this.what = what; this.who = who; } }
     public struct Section { public string title; public Entry[] entries; }

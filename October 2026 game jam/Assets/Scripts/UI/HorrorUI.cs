@@ -34,6 +34,23 @@ public static class HorrorUI
     public static Color Out(Color c) => !NeedsGammaFix ? c
         : new Color(Mathf.LinearToGammaSpace(c.r), Mathf.LinearToGammaSpace(c.g), Mathf.LinearToGammaSpace(c.b), c.a);
 
+    // Text is its own case: in a linear-colour build, OnGUI text comes out with its colour squared
+    // (Ember 245,122,31 shows as 232,49,3 - orange turns red, cream turns khaki) while shapes and images are fine.
+    // So in builds every text colour is pre-corrected; the editor already shows them right.
+    static int textFix = -1;
+    static bool TextNeedsFix
+    {
+        get
+        {
+            if (textFix < 0) textFix = !Application.isEditor && QualitySettings.activeColorSpace == ColorSpace.Linear ? 1 : 0;
+            return textFix == 1;
+        }
+    }
+
+    /// <summary>The colour to hand to a GUIStyle's textColor so the text shows on screen as c.</summary>
+    public static Color TextOut(Color c) => !TextNeedsFix ? Out(c)
+        : new Color(Mathf.LinearToGammaSpace(c.r), Mathf.LinearToGammaSpace(c.g), Mathf.LinearToGammaSpace(c.b), c.a);
+
     static readonly System.Collections.Generic.Dictionary<Texture, Texture> fixedTex = new System.Collections.Generic.Dictionary<Texture, Texture>();
 
     /// <summary>The texture to draw with GUI.DrawTexture so it shows on screen like it does in the editor.</summary>
@@ -151,12 +168,12 @@ public static class HorrorUI
         }
         if (chroma > 0f)
         {
-            st.normal.textColor = Out(new Color(1f, 0.08f, 0.05f, c.a * 0.38f));
+            st.normal.textColor = TextOut(new Color(1f, 0.08f, 0.05f, c.a * 0.38f));
             GUI.Label(new Rect(r.x - chroma, r.y, r.width, r.height), s, st);
-            st.normal.textColor = Out(new Color(0.1f, 0.75f, 1f, c.a * 0.22f));
+            st.normal.textColor = TextOut(new Color(0.1f, 0.75f, 1f, c.a * 0.22f));
             GUI.Label(new Rect(r.x + chroma, r.y + chroma * 0.3f, r.width, r.height), s, st);
         }
-        st.normal.textColor = Out(c);
+        st.normal.textColor = TextOut(c);
         GUI.Label(r, s, st);
     }
 
