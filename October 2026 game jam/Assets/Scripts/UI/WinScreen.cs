@@ -16,6 +16,8 @@ public class WinScreen : MonoBehaviour
 
     float start, escapeTime;
     int heartsLeft, heartsMax;
+    int unlockedLevel = -1, playedLevel;
+    bool newBest, unlockSoundPlayed;
     string line;
     GUIStyle title, sub, stats, prompt;
     bool canRestart, fromBlack, choirPlayed;
@@ -57,6 +59,12 @@ public class WinScreen : MonoBehaviour
         var lives = FindFirstObjectByType<PlayerLives>();
         heartsLeft = lives != null ? lives.Remaining : 0;
         heartsMax = lives != null ? lives.Max : 0;
+
+        // Remember the escape: best time, and open the next difficulty if this was the hardest one so far.
+        playedLevel = Difficulty.Current;
+        float prevBest = SaveData.D.bestTime[playedLevel];
+        newBest = prevBest > 0f && escapeTime < prevBest;
+        unlockedLevel = Difficulty.RecordEscape(escapeTime);
 
         if (PlayerController.Instance != null) { PlayerController.Instance.InputEnabled = false; PlayerController.Instance.enabled = false; } // so clicking a button doesn't re-grab the mouse
         var hud = FindFirstObjectByType<FlashlightHUD>();
@@ -142,9 +150,21 @@ public class WinScreen : MonoBehaviour
         HorrorUI.Fill(new Rect((sw - divW) * 0.5f, ty + 232 * k, divW, Mathf.Max(1f, 1.5f * k)), HorrorUI.A(HorrorUI.EmberDim, a3 * 0.8f));
 
         int mins = Mathf.FloorToInt(escapeTime / 60f), secs = Mathf.FloorToInt(escapeTime % 60f);
-        string statLine = $"time in the corn   {mins}:{secs:00}";
+        string statLine = $"{Difficulty.All[playedLevel].name}        time in the corn   {mins}:{secs:00}" + (newBest ? "  (new best)" : "");
         if (heartsMax > 0) statLine += $"        hearts kept   {heartsLeft} / {heartsMax}";
         HorrorUI.Text(new Rect(0, ty + 252 * k, sw, 40 * k), statLine, stats, HorrorUI.A(HorrorUI.Ash, a3), 0f, 2f * k);
+
+        // A harder night opens up.
+        if (unlockedLevel >= 0)
+        {
+            float a5 = Mathf.Clamp01((t - fadeTime - textDelay - 1.9f) / 1.0f);
+            if (a5 > 0f && !unlockSoundPlayed) { unlockSoundPlayed = true; GameAudio.Play2D(GameAudio.Get("Key_Bell"), 0.7f); }
+            float flick = 0.8f + 0.2f * Mathf.PerlinNoise(t * 5f, 3.3f);
+            HorrorUI.Glow(new Rect(sw * 0.3f, ty + 300 * k, sw * 0.4f, 90 * k), HorrorUI.A(HorrorUI.Blood, 0.25f * a5 * flick));
+            HorrorUI.Text(new Rect(0, ty + 312 * k, sw, 44 * k), "A HARDER NIGHT AWAITS:  " + Difficulty.All[unlockedLevel].name,
+                          sub, HorrorUI.A(HorrorUI.Ember, a5 * flick), 1.5f * k, 2f * k);
+            HorrorUI.Text(new Rect(0, ty + 356 * k, sw, 34 * k), Difficulty.All[unlockedLevel].tagline, stats, HorrorUI.A(HorrorUI.Bone, 0.7f * a5), 0f, 2f * k);
+        }
 
         HorrorUI.Vignette(0.9f * fade, Color.black);
         HorrorUI.Grain(0.07f * fade);

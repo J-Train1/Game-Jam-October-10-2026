@@ -123,6 +123,10 @@ public class PumpkinMonster : MonoBehaviour
 
     void Awake()
     {
+        var diff = Difficulty.S;
+        huntSpeed = diff.huntSpeed;
+        sightRange = diff.sightRange;
+        objectiveNoiseRadius = diff.noiseRadius;
         anim = GetComponentInChildren<Animator>();
         if (anim != null)
         {

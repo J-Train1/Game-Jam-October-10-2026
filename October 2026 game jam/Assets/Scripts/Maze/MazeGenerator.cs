@@ -63,6 +63,9 @@ public class MazeGenerator : MonoBehaviour
     void Awake()
     {
         Instance = this;
+        // Maze size comes from the difficulty; the stalk safety cap grows with the area.
+        cellsX = cellsY = Difficulty.S.mazeCells;
+        maxStalks = Mathf.Max(maxStalks, Mathf.CeilToInt(9000f * cellsX * cellsY / 100f));
         ApplyCameraCulling();
         Generate();
     }

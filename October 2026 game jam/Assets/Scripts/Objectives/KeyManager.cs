@@ -46,7 +46,11 @@ public class KeyManager : MonoBehaviour
     AudioSource audioSrc;
     AudioClip pickupClip;
 
-    void Awake() => Instance = this;
+    void Awake()
+    {
+        Instance = this;
+        keyCount = Difficulty.S.keys;
+    }
 
     void Start()
     {

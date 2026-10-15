@@ -72,11 +72,11 @@ public class HowToPlayPanel
         },
         new Page
         {
-            title = "THREE HEARTS", shot = "Shot_Dark", caption = "fig. 6 — without the light",
+            title = "YOUR HEARTS", shot = "Shot_Dark", caption = "fig. 6 — without the light",
             lines = new[]
             {
                 "If one of them catches you, you lose a heart and wake back at the start.",
-                "Lose all three, and the field keeps you.",
+                "Lose them all, and the field keeps you. (On HARVESTED you only get one.)",
             },
             keysTitle = "CONTROLS",
             keys = new[] { "W,A,S,D|walk", "MOUSE|look", "SHIFT|sprint", "F,/,RIGHT MOUSE|flashlight", "ESC|pause" },

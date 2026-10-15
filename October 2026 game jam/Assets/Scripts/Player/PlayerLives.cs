@@ -14,6 +14,7 @@ public class PlayerLives : MonoBehaviour
     void Awake()
     {
         Instance = this;
+        maxLives = Difficulty.S.hearts;
         Remaining = maxLives;
     }
 

@@ -61,6 +61,7 @@ public class Flashlight : MonoBehaviour
     void Awake()
     {
         Instance = this;
+        drainPerSecond = maxBattery / Mathf.Max(1f, Difficulty.S.batteryLife); // seconds of light from a full battery
         beam = GetComponent<Light>();
         beam.type = LightType.Spot;
         beam.range = range;

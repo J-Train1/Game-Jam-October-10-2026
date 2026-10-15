@@ -151,7 +151,7 @@ public static class JamTools
     {
         void OnPreprocessTexture()
         {
-            if (assetPath.EndsWith("DollHeadLogo.png"))
+            if (assetPath.EndsWith("DollHeadLogo.png") || assetPath.Contains("/Resources/Difficulty/"))
             {
                 var li = (TextureImporter)assetImporter;
                 li.textureType = TextureImporterType.Default;

@@ -72,6 +72,7 @@ public class PlayerController : MonoBehaviour
     {
         Instance = this;
         controller = GetComponent<CharacterController>();
+        maxStamina = Difficulty.S.stamina;
         stamina = maxStamina;
         if (cameraRoot == null && Camera.main != null) cameraRoot = Camera.main.transform;
         if (cameraRoot != null) cameraBasePos = cameraRoot.localPosition;

@@ -20,7 +20,11 @@ public class PumpkinSpawner : MonoBehaviour
 
     int spawned;
 
-    void Awake() => Instance = this;
+    void Awake()
+    {
+        Instance = this;
+        startCount = Difficulty.S.startPumpkins;
+    }
 
     void Start()
     {
