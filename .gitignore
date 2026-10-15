@@ -18,6 +18,22 @@
 sysinfo.txt
 
 # ============================================================
+# Built game output (caused the "Files too large" error)
+# ============================================================
+
+# The downloaded / built game folder sitting in the repo
+Creepers In The Corn - James Maher/
+
+# Standalone build leftovers
+*_BurstDebugInformation_DoNotShip/
+*_BackUpThisFolder_ButDontShipItWithYourGame/
+MonoBleedingEdge/
+
+# Large Unity build data files
+*.resS
+*.resource
+
+# ============================================================
 # IDE / Visual Studio / Rider
 # ============================================================
 
