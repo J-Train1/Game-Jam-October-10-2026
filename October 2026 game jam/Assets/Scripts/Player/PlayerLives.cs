@@ -30,6 +30,7 @@ public class PlayerLives : MonoBehaviour
     public int LoseLife()
     {
         Remaining = Mathf.Max(0, Remaining - 1);
+        Achievements.LostHeart(Remaining);
         Debug.Log($"[Lives] lost a heart: {Remaining}/{maxLives} left");
         return Remaining;
     }

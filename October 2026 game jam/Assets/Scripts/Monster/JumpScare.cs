@@ -250,6 +250,7 @@ public class JumpScare : MonoBehaviour
         v = requestedVariant != Variant.Random ? requestedVariant : Pick();
         requestedVariant = Variant.Random;
         lastVariant = v;
+        Achievements.SawScare((int)v); // bite / stab / spin (the ending's grab doesn't count)
         side = Random.value < 0.5f ? -1f : 1f;
         stabRight = Random.value < 0.5f;
 

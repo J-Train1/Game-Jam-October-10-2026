@@ -64,7 +64,7 @@ public class CreditsPanel
 
     public CreditsPanel(AudioSource audioSource) { src = audioSource; }
 
-    public void Open() { openedAt = Time.unscaledTime; hoverBack = lastHover = false; }
+    public void Open() { openedAt = Time.unscaledTime; hoverBack = lastHover = false; Achievements.Unlock("CREDITS"); }
 
     void Back() { Tick(); OnBack?.Invoke(); }
 

@@ -95,7 +95,7 @@ public class HowToPlayPanel
     public HowToPlayPanel(AudioSource audioSource) { src = audioSource; }
 
     /// <summary>Start from the first page.</summary>
-    public void Open() { page = 0; pageTime = Time.unscaledTime; hover = lastHover = -1; }
+    public void Open() { page = 0; pageTime = Time.unscaledTime; hover = lastHover = -1; Achievements.HowToPageSeen(0, Pages.Length); }
 
     static Texture2D Shot(string name)
     {
@@ -112,6 +112,7 @@ public class HowToPlayPanel
         p = Mathf.Clamp(p, 0, Pages.Length - 1);
         if (p == page) return;
         page = p;
+        Achievements.HowToPageSeen(p, Pages.Length);
         pageTime = Time.unscaledTime;
         Tick();
     }

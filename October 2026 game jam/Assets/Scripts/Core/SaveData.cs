@@ -15,6 +15,9 @@ public static class SaveData
         public int[] escapes = new int[3];        // escapes per difficulty
         public float[] bestTime = new float[3];   // seconds; 0 = never escaped
         public int deaths;                        // game overs
+        public System.Collections.Generic.List<string> achievements = new System.Collections.Generic.List<string>(); // earned ids
+        public int howToSeen;                     // bit per How to Play page read
+        public int scaresSeen;                    // bit per jump scare seen (bite, stab, spin)
     }
 
     const string Key = "save.v1";
@@ -44,6 +47,7 @@ public static class SaveData
         int n = Difficulty.All.Length;
         if (d.escapes == null || d.escapes.Length < n) System.Array.Resize(ref d.escapes, n);
         if (d.bestTime == null || d.bestTime.Length < n) System.Array.Resize(ref d.bestTime, n);
+        d.achievements ??= new System.Collections.Generic.List<string>();
         d.highestUnlocked = Mathf.Clamp(d.highestUnlocked, 0, n - 1);
         d.lastDifficulty = Mathf.Clamp(d.lastDifficulty, 0, d.highestUnlocked);
     }

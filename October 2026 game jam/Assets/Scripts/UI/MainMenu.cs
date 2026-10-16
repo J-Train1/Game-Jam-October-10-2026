@@ -35,8 +35,8 @@ public class MainMenu : MonoBehaviour
     public Vector3 moonPosition = new Vector3(10.5f, 6.8f, 22f);
     public float moonSize = 6f;
 
-    enum Item { Play, Difficulty, HowTo, Settings, Credits, Quit }
-    static readonly string[] Labels = { "PLAY", "DIFFICULTY", "HOW TO PLAY", "SETTINGS", "CREDITS", "QUIT GAME" };
+    enum Item { Play, Difficulty, HowTo, Achievements, Settings, Credits, Quit }
+    static readonly string[] Labels = { "PLAY", "DIFFICULTY", "HOW TO PLAY", "ACHIEVEMENTS", "SETTINGS", "CREDITS", "QUIT GAME" };
 
     Camera cam;
     Quaternion camBaseRot;
@@ -51,6 +51,9 @@ public class MainMenu : MonoBehaviour
     DifficultyPanel diffPanel;
     bool diffOpen;
     float diffAt;
+    AchievementsPanel achPanel;
+    bool achOpen;
+    float achAt;
     GUIStyle diffValueStyle;
     float start, leaveStart;
     Item leaveAction;
@@ -99,6 +102,7 @@ public class MainMenu : MonoBehaviour
         howTo = new HowToPlayPanel(sfx) { OnBack = () => howToOpen = false };
         credits = new CreditsPanel(sfx) { OnBack = () => creditsOpen = false };
         diffPanel = new DifficultyPanel(sfx) { OnBack = () => diffOpen = false };
+        achPanel = new AchievementsPanel(sfx) { OnBack = () => achOpen = false };
         nextLook = Time.time + Random.Range(5f, 8f);
     }
 
@@ -387,6 +391,10 @@ public class MainMenu : MonoBehaviour
             {
                 diffPanel.Update();
             }
+            else if (achOpen)
+            {
+                achPanel.Update();
+            }
             else if (howToOpen)
             {
                 howTo.Update();
@@ -431,7 +439,7 @@ public class MainMenu : MonoBehaviour
         rig.rotation = Quaternion.LookRotation(toCam.normalized) * Quaternion.Euler(Mathf.Sin(t * 0.5f) * 0.6f, Mathf.Sin(t * 0.37f) * 1.2f, Mathf.Sin(t * 0.61f) * 0.9f);
 
         // Now and then -- and whenever you hover QUIT -- the head slowly comes up to look at you.
-        bool quitHover = !settingsOpen && !howToOpen && !creditsOpen && !diffOpen && selected == (int)Item.Quit;
+        bool quitHover = !settingsOpen && !howToOpen && !creditsOpen && !diffOpen && !achOpen && selected == (int)Item.Quit;
         if (t >= nextLook) { lookUntil = t + Random.Range(1.6f, 2.6f); nextLook = t + Random.Range(9f, 15f); }
         bool looking = quitHover || t < lookUntil;
         lookW = Mathf.MoveTowards(lookW, looking ? 1f : 0f, Time.deltaTime * (looking ? 0.7f : 0.45f));
@@ -471,6 +479,7 @@ public class MainMenu : MonoBehaviour
                 else { leaving = true; leaveAction = Item.Play; leaveStart = Time.unscaledTime; }
                 break;
             case Item.HowTo: howToOpen = true; howToAt = Time.unscaledTime; howTo.Open(); break;
+            case Item.Achievements: achOpen = true; achAt = Time.unscaledTime; achPanel.Open(); break;
             case Item.Difficulty: diffOpen = true; diffAt = Time.unscaledTime; diffPanel.Open(); break;
             case Item.Credits: creditsOpen = true; creditsAt = Time.unscaledTime; credits.Open(); break;
             case Item.Settings: settingsOpen = true; panel.ResetSelection(); break;
@@ -509,15 +518,15 @@ public class MainMenu : MonoBehaviour
             panelText = HorrorUI.Style(HorrorUI.TypeFont);
         }
 
-        bool panelUp = settingsOpen || howToOpen || creditsOpen || diffOpen || panel.Calibrating;
+        bool panelUp = settingsOpen || howToOpen || creditsOpen || diffOpen || achOpen || panel.Calibrating;
         if (paint && !panelUp) DrawTitle(sw, sh, k, t);
 
         // ---- Buttons ----
         float x0 = 110f * k;
         if (!panelUp)
         {
-            itemStyle.fontSize = HorrorUI.Px(54);
-            float by = 540f * k, gap = 76f * k;
+            itemStyle.fontSize = HorrorUI.Px(50);
+            float by = 520f * k, gap = 70f * k;
             Vector2 mouse = Event.current.mousePosition;
             int hover = -1;
             for (int i = 0; i < Labels.Length; i++)
@@ -561,6 +570,10 @@ public class MainMenu : MonoBehaviour
         else if (diffOpen)
         {
             diffPanel.OnGUI(Mathf.Clamp01((Time.unscaledTime - diffAt) / 0.35f));
+        }
+        else if (achOpen)
+        {
+            achPanel.OnGUI(Mathf.Clamp01((Time.unscaledTime - achAt) / 0.35f));
         }
         else if (howToOpen)
         {

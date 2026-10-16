@@ -65,6 +65,7 @@ public class WinScreen : MonoBehaviour
         float prevBest = SaveData.D.bestTime[playedLevel];
         newBest = prevBest > 0f && escapeTime < prevBest;
         unlockedLevel = Difficulty.RecordEscape(escapeTime);
+        Achievements.Escaped(playedLevel, heartsMax > 0 && heartsLeft >= heartsMax);
 
         if (PlayerController.Instance != null) { PlayerController.Instance.InputEnabled = false; PlayerController.Instance.enabled = false; } // so clicking a button doesn't re-grab the mouse
         var hud = FindFirstObjectByType<FlashlightHUD>();

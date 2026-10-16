@@ -34,6 +34,7 @@ public class KeyHUD : MonoBehaviour
         if (FindFirstObjectByType<Narrator>() == null) gameObject.AddComponent<Narrator>();
         if (FindFirstObjectByType<PauseMenu>() == null) gameObject.AddComponent<PauseMenu>();
         if (FindFirstObjectByType<SoundScape>() == null) gameObject.AddComponent<SoundScape>();
+        if (FindFirstObjectByType<AchievementTracker>() == null) gameObject.AddComponent<AchievementTracker>();
     }
 
     void Update()
